@@ -792,6 +792,54 @@ void main() {
     });
 
     test(
+        'Quantity-less material buy: excluded from price trend, kept in BvA',
+        () async {
+      // v17: a material buy can be logged without a quantity. Such a buy
+      // has no real per-unit rate, so it must NOT appear in the price
+      // trend — but its cost still rolls up under its material type in the
+      // Budget vs Actual breakdown (the detail lives in the memo).
+      final sId = await _supplier('Steelco');
+      final pId = await _project('Site A', budget: 1000000);
+
+      // One quantified buy (feeds the trend) and one without a quantity.
+      final txnQty = await _ledgerRepo.postMaterialBuy(
+          amount: 30000, projectId: pId, supplierId: sId);
+      await _entityRepo.logMaterialPurchase(
+        projectId: pId,
+        supplierId: sId,
+        transactionId: txnQty,
+        materialType: 'Cement',
+        price: 30000,
+        quantity: 60,
+      );
+      final txnNoQty = await _ledgerRepo.postMaterialBuy(
+          amount: 20000, projectId: pId, supplierId: sId);
+      final item = await _entityRepo.logMaterialPurchase(
+        projectId: pId,
+        supplierId: sId,
+        transactionId: txnNoQty,
+        materialType: 'Cement',
+        price: 20000,
+        // quantity intentionally omitted.
+      );
+
+      // The row is persisted with null quantity / rate.
+      expect(item.quantity, isNull);
+      expect(item.rate, isNull);
+
+      // Price trend only plots the quantified buy.
+      final trend = await _ledgerRepo.priceTrend();
+      expect(trend['Cement']?.length, 1,
+          reason: 'quantity-less buy must not appear in the price trend');
+      expect(trend['Cement']!.single.rate, closeTo(500, 0.01));
+
+      // BvA still counts both — full 50K of Cement spend.
+      final bva = await _ledgerRepo.projectBva(pId);
+      expect(bva.materialByType['Cement'], 50000,
+          reason: 'quantity-less buy still rolls up under its type');
+    });
+
+    test(
         'Mixed order: cost → prepayment → cost — prepayment consumes '
         'only what fits', () async {
       final sId = await _supplier('Steelco');

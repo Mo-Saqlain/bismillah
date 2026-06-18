@@ -10,6 +10,16 @@ import '../repositories/ledger_repository.dart';
 
 enum SyncState { idle, syncing, error, offline, disabled }
 
+/// Outcome of a one-shot reachability probe against the Supabase project.
+enum SupabaseHealthState { ok, offline, notConfigured, error }
+
+class SupabaseHealth {
+  final SupabaseHealthState state;
+  final String? message;
+  final Duration? latency;
+  const SupabaseHealth(this.state, {this.message, this.latency});
+}
+
 class SyncStatus {
   final SyncState state;
   final int pending;
@@ -97,11 +107,43 @@ class SyncService {
     _statusCtrl.close();
   }
 
+  /// Probes the Supabase project with a single lightweight round-trip.
+  /// Confirms the device is online, the URL resolves, the anon key is
+  /// accepted and the schema is reachable — without pulling real data.
+  /// Independent of the cloud-sync toggle so the operator can check the
+  /// service even while background sync is off.
+  Future<SupabaseHealth> checkService() async {
+    if (!SupabaseConfig.configured) {
+      return const SupabaseHealth(SupabaseHealthState.notConfigured,
+          message: 'Supabase URL / anon key not set in this build.');
+    }
+    final results = await Connectivity().checkConnectivity();
+    final online = results.any((r) => r != ConnectivityResult.none);
+    if (!online) {
+      return const SupabaseHealth(SupabaseHealthState.offline,
+          message: 'This device is offline.');
+    }
+    final sw = Stopwatch()..start();
+    try {
+      await Supabase.instance.client.from('projects').select('id').limit(1);
+      sw.stop();
+      return SupabaseHealth(SupabaseHealthState.ok, latency: sw.elapsed);
+    } catch (e) {
+      sw.stop();
+      return SupabaseHealth(SupabaseHealthState.error, message: e.toString());
+    }
+  }
+
   /// Drains both push and pull for every syncing table. Safe to call
   /// from anywhere; concurrent calls are coalesced.
-  Future<void> syncNow() async {
+  ///
+  /// [force] bypasses the cloud-sync toggle so the operator can trigger a
+  /// one-shot manual sync from Settings even when background sync is off.
+  /// The automatic triggers (ticker, connectivity, commit listener) never
+  /// pass it, so they still respect the toggle.
+  Future<void> syncNow({bool force = false}) async {
     if (!SupabaseConfig.configured) return;
-    if (!await _entities.cloudSyncEnabled()) {
+    if (!force && !await _entities.cloudSyncEnabled()) {
       _emit(SyncStatus(
         state: SyncState.disabled,
         pending: 0,

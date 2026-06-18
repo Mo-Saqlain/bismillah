@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/constants.dart';
 import '../data/models/bank.dart';
-import '../data/models/counter_entity.dart';
 import '../data/models/follow_up.dart';
 import '../data/models/labour_type_def.dart';
 import '../data/models/material_type_def.dart';
@@ -68,13 +67,6 @@ final cashLikeAccountsProvider =
   ];
 });
 
-final counterEntitiesProvider =
-    FutureProvider<List<CounterEntity>>((ref) async {
-  ref.watch(ledgerVersionProvider);
-  final repo = await ref.watch(entityRepoProvider.future);
-  return repo.counterEntities();
-});
-
 /// User-defined material categories. Bumping [ledgerVersionProvider]
 /// after add/delete refreshes the dropdown everywhere that watches this
 /// list.
@@ -109,12 +101,6 @@ final pendingFollowUpsProvider = FutureProvider<List<FollowUp>>((ref) async {
   ref.watch(ledgerVersionProvider);
   final repo = await ref.watch(entityRepoProvider.future);
   return repo.pendingFollowUps();
-});
-
-final overdueFollowUpsProvider = FutureProvider<List<FollowUp>>((ref) async {
-  ref.watch(ledgerVersionProvider);
-  final repo = await ref.watch(entityRepoProvider.future);
-  return repo.overdueFollowUps();
 });
 
 final archivedFollowUpsProvider = FutureProvider<List<FollowUp>>((ref) async {

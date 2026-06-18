@@ -181,19 +181,6 @@ class CashFlowSummary {
   double get closingCash => openingCash + netChange;
 }
 
-class WageRegisterLine {
-  final String supplierId;
-  final int paymentCount;
-  final double totalPaid;
-  final DateTime lastPaidAt;
-  const WageRegisterLine({
-    required this.supplierId,
-    required this.paymentCount,
-    required this.totalPaid,
-    required this.lastPaidAt,
-  });
-}
-
 class ProjectBva {
   /// Keyed by the human-readable material label (e.g. "Cement"). User-defined
   /// types appear here verbatim; legacy enum-name rows are normalized via
@@ -215,12 +202,6 @@ class PricePoint {
   final DateTime date;
   final double rate;
   const PricePoint({required this.date, required this.rate});
-}
-
-class BurnPoint {
-  final DateTime date;
-  final double cumulativeSpend;
-  const BurnPoint({required this.date, required this.cumulativeSpend});
 }
 
 class DailySpend {

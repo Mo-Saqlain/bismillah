@@ -511,6 +511,8 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
   bool? _enabled;
   String? _tenantId;
   bool _busy = false;
+  bool _checking = false;
+  SupabaseHealth? _health;
 
   @override
   void initState() {
@@ -546,10 +548,24 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
     setState(() => _busy = true);
     try {
       final svc = await ref.read(syncServiceFutureProvider.future);
-      await svc.syncNow();
+      // force: true so a manual sync still runs even when the background
+      // sync toggle is off.
+      await svc.syncNow(force: true);
       await _load();
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _checkService() async {
+    setState(() => _checking = true);
+    try {
+      final svc = await ref.read(syncServiceFutureProvider.future);
+      final health = await svc.checkService();
+      if (!mounted) return;
+      setState(() => _health = health);
+    } finally {
+      if (mounted) setState(() => _checking = false);
     }
   }
 
@@ -614,6 +630,30 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
         SyncState.disabled => 'Disabled',
       };
 
+  Color? _healthColor(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return switch (_health?.state) {
+      null => null,
+      SupabaseHealthState.ok => Colors.green,
+      SupabaseHealthState.offline => scheme.onSurfaceVariant,
+      SupabaseHealthState.notConfigured => scheme.onSurfaceVariant,
+      SupabaseHealthState.error => scheme.error,
+    };
+  }
+
+  String _healthSubtitle() {
+    final h = _health;
+    if (h == null) return 'Ping your Supabase project to confirm it is reachable';
+    return switch (h.state) {
+      SupabaseHealthState.ok =>
+        'Service reachable ✓ (${h.latency!.inMilliseconds} ms)',
+      SupabaseHealthState.offline => h.message ?? 'This device is offline',
+      SupabaseHealthState.notConfigured =>
+        h.message ?? 'Supabase not configured in this build',
+      SupabaseHealthState.error => 'Unreachable: ${h.message}',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = ref.watch(syncStatusProvider);
@@ -664,10 +704,29 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
             ),
           ),
           ListTile(
+            leading: Icon(switch (_health?.state) {
+              null => Icons.network_check,
+              SupabaseHealthState.ok => Icons.check_circle_outline,
+              SupabaseHealthState.offline => Icons.wifi_off,
+              SupabaseHealthState.notConfigured => Icons.help_outline,
+              SupabaseHealthState.error => Icons.error_outline,
+            }, color: _healthColor(context)),
+            title: const Text('Check Supabase service'),
+            subtitle: Text(_healthSubtitle()),
+            trailing: _checking
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.chevron_right),
+            onTap: _checking ? null : _checkService,
+          ),
+          ListTile(
             leading: const Icon(Icons.refresh),
             title: const Text('Sync now'),
             subtitle: const Text(
-                'Push local changes, then pull any rows from other devices'),
+                'Push local changes, then pull rows from other devices. '
+                'Works even when background sync is off.'),
             trailing: _busy
                 ? const SizedBox(
                     width: 20,

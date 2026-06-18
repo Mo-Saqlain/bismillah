@@ -132,8 +132,10 @@ CREATE TABLE IF NOT EXISTS material_inventory (
   transaction_id  text,
   material_type   text NOT NULL,
   unit            text NOT NULL,
-  quantity        numeric NOT NULL,
-  rate            numeric NOT NULL,
+  -- nullable (local schema v17): a material buy may be logged without a
+  -- quantity; such rows carry a null rate and are skipped by the price trend.
+  quantity        numeric,
+  rate            numeric,
   total_cost      numeric NOT NULL,
   txn_type        text NOT NULL,
   is_deleted      integer NOT NULL DEFAULT 0,

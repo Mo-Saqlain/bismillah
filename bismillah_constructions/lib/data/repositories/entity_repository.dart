@@ -668,10 +668,12 @@ class EntityRepository {
 
   /// Records a material purchase against [material_inventory].
   ///
-  /// Quantity / unit / rate are now mandatory at the UI layer so the
-  /// price-trend report has real per-unit data to work with — but the
-  /// repository still accepts the legacy fallback (`quantity = 1`,
-  /// `unit = lump`, `rate = price`) when callers don't have those fields.
+  /// Quantity is optional. When a positive [quantity] is supplied we store it
+  /// with the derived per-unit `rate` (`price / quantity`) so the Material
+  /// Price Trend can plot this purchase. When it is omitted we still log the
+  /// row — so the per-type cost breakdown keeps the material-type attribution
+  /// — but with a null quantity and null rate, which the price-trend query
+  /// skips. The cost detail then lives in the transaction memo.
   ///
   /// `supplierId` is nullable: counter-purchase rows aren't tied to a
   /// supplier. Schema v12 made the column nullable to support this.
@@ -684,18 +686,16 @@ class EntityRepository {
     double? quantity,
     MaterialUnit? unit,
   }) async {
-    final double qty =
-        (quantity != null && quantity > 0) ? quantity : 1.0;
-    final u = unit ?? MaterialUnit.lump;
+    final bool hasQty = quantity != null && quantity > 0;
     final item = MaterialItem(
       id: _uuid.v4(),
       projectId: projectId,
       supplierId: supplierId,
       transactionId: transactionId,
       materialType: materialType,
-      unit: u,
-      quantity: qty,
-      rate: price / qty,
+      unit: unit ?? MaterialUnit.lump,
+      quantity: hasQty ? quantity : null,
+      rate: hasQty ? price / quantity : null,
       totalCost: price,
       txnType: MaterialTxnType.purchase,
       createdAt: DateTime.now().toUtc(),

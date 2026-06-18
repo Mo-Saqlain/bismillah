@@ -13,7 +13,7 @@ class LocalDb {
   /// through [open], which routes through [_onCreate] / [_onUpgrade] like
   /// normal.
   @visibleForTesting
-  Future<void> applySchemaForTests(Database db) => _onCreate(db, 16);
+  Future<void> applySchemaForTests(Database db) => _onCreate(db, 17);
 
   Database? _db;
   String? _dbPath;
@@ -49,7 +49,7 @@ class LocalDb {
     _db = await factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 16,
+        version: 17,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
         },
@@ -131,8 +131,11 @@ class LocalDb {
         transaction_id TEXT,
         material_type TEXT NOT NULL,
         unit TEXT NOT NULL,
-        quantity REAL NOT NULL,
-        rate REAL NOT NULL,
+        -- nullable as of v17: a material buy can be logged without a
+        -- quantity. Such rows carry a null rate and are skipped by the
+        -- Material Price Trend; their detail lives in the memo instead.
+        quantity REAL,
+        rate REAL,
         total_cost REAL NOT NULL,
         txn_type TEXT NOT NULL,
         created_at TEXT NOT NULL,
@@ -775,6 +778,62 @@ class LocalDb {
       // written to once free-text `client_name` replaced it (v5). No FK
       // references it, so it is safe to drop outright.
       await db.execute('DROP TABLE IF EXISTS customers');
+    }
+
+    if (oldVersion < 17) {
+      // v17: make material_inventory.quantity / .rate nullable so a material
+      // buy can be logged without a quantity (its detail then lives in the
+      // memo). Quantity-less rows are excluded from the Material Price Trend.
+      //
+      // SQLite can't DROP NOT NULL in place; recreate the table and copy the
+      // data over. Columns are named explicitly so the copy is order-proof.
+      await db.execute('''
+        CREATE TABLE material_inventory_v17 (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          supplier_id TEXT,
+          transaction_id TEXT,
+          material_type TEXT NOT NULL,
+          unit TEXT NOT NULL,
+          quantity REAL,
+          rate REAL,
+          total_cost REAL NOT NULL,
+          txn_type TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          is_deleted INTEGER NOT NULL DEFAULT 0,
+          deleted_at TEXT,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (project_id) REFERENCES projects(id),
+          FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+        )
+      ''');
+      await db.execute('''
+        INSERT INTO material_inventory_v17 (
+          id, project_id, supplier_id, transaction_id, material_type, unit,
+          quantity, rate, total_cost, txn_type, created_at, is_deleted,
+          deleted_at, updated_at)
+        SELECT
+          id, project_id, supplier_id, transaction_id, material_type, unit,
+          quantity, rate, total_cost, txn_type, created_at, is_deleted,
+          deleted_at, updated_at
+        FROM material_inventory
+      ''');
+      await db.execute('DROP TABLE material_inventory');
+      await db.execute(
+          'ALTER TABLE material_inventory_v17 RENAME TO material_inventory');
+      // DROP TABLE took the bump-on-update trigger with it (v15). Recreate
+      // it so the cloud-sync cursor keeps tracking edits to this table.
+      await db.execute('''
+        CREATE TRIGGER trg_bump_material_inventory_updated
+        AFTER UPDATE ON material_inventory
+        FOR EACH ROW
+        WHEN NEW.updated_at = OLD.updated_at
+        BEGIN
+          UPDATE material_inventory
+          SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+          WHERE rowid = NEW.rowid;
+        END
+      ''');
     }
   }
 

@@ -16,8 +16,12 @@ class MaterialItem {
   final String? transactionId;
   final String materialType;
   final MaterialUnit unit;
-  final double quantity;
-  final double rate;
+  /// Nullable as of schema v17: a material buy may be logged without a
+  /// quantity (the cost lives in the memo). Rows with a null quantity carry
+  /// a null [rate] too and are excluded from the Material Price Trend — the
+  /// trend only plots purchases where a real per-unit rate exists.
+  final double? quantity;
+  final double? rate;
   final double totalCost;
   final MaterialTxnType txnType;
   final DateTime createdAt;
@@ -57,8 +61,8 @@ class MaterialItem {
         transactionId: m['transaction_id'] as String?,
         materialType: resolveMaterialLabel(m['material_type'] as String),
         unit: MaterialUnitX.fromDb(m['unit'] as String),
-        quantity: (m['quantity'] as num).toDouble(),
-        rate: (m['rate'] as num).toDouble(),
+        quantity: (m['quantity'] as num?)?.toDouble(),
+        rate: (m['rate'] as num?)?.toDouble(),
         totalCost: (m['total_cost'] as num).toDouble(),
         txnType: MaterialTxnTypeX.fromDb(m['txn_type'] as String),
         createdAt: DateTime.parse(m['created_at'] as String),

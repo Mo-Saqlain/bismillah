@@ -15,7 +15,10 @@ backups still run regardless. Supabase adds:
 2. **Apply the schema.** Open the SQL Editor in the dashboard and paste
    the contents of [`migrations/0001_initial.sql`](migrations/0001_initial.sql).
    This creates 10 tables, the bump-on-update triggers, and open RLS
-   policies.
+   policies. On an **existing** project, also apply any later numbered
+   files in [`migrations/`](migrations/) in order
+   (e.g. `0002_material_quantity_optional.sql`) — fresh projects get
+   those changes from `0001_initial.sql` already.
 
 3. **Get your project's URL and anon key** from
    Project Settings → API. The URL looks like

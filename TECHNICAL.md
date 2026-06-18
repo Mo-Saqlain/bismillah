@@ -97,7 +97,7 @@ bismillah_constructions/
 │   │       └── pdf_generator.dart             # PDF report builder
 │   ├── data/
 │   │   ├── db/
-│   │   │   └── local_db.dart                  # sqflite open + schema v16 + migrations
+│   │   │   └── local_db.dart                  # sqflite open + schema v17 + migrations
 │   │   ├── models/                            # Plain Dart structs + toMap/fromMap
 │   │   ├── repositories/
 │   │   │   ├── ledger_repository.dart         # journal_entries writes + reads + reports
@@ -144,7 +144,7 @@ Total automated tests: **106**, all passing under `flutter test`.
 
 ## 4. Data model
 
-The local SQLite schema is at **version 16**. Migrations are forward-only
+The local SQLite schema is at **version 17**. Migrations are forward-only
 and additive (with one drop-column in v16). See section
 [12](#12-schema-migration-history) for the full migration history.
 
@@ -519,7 +519,7 @@ Settings → Audit → **Recent Errors** opens
 3. `RestoreGateway.initState()` decides whether to silently restore
    from `solo_con_latest.db` or proceed straight to HomeScreen (see
    section 7.2).
-4. `LocalDb.instance.open()` runs migrations to schema version 16.
+4. `LocalDb.instance.open()` runs migrations to schema version 17.
 
 ---
 
@@ -615,6 +615,7 @@ flutter analyze --no-fatal-infos              # static analysis
 | v14     | Operational memory: `notes` and `follow_ups` tables — pinnable per-entity notes, recovery reminders with priority + status; `updated_at` columns on all soft-delete tables |
 | v15     | Cloud-sync plumbing: `synced` flag on every domain table, `tenant_id` + `last_pull_at_*` in app_settings, `updated_at` defaults applied across schema |
 | v16     | Removed the Customer entity: dropped `customers` table, dropped `customer_id` column from projects + journal_entries (DROP COLUMN requires SQLite ≥ 3.35; guarded with try/catch). Project is now the only counterparty |
+| v17     | Made `material_inventory.quantity` / `.rate` nullable (table recreated; bump-on-update trigger reinstated) so a material buy can be logged without a quantity. Quantity-less rows carry a null rate and are excluded from the Material Price Trend — their detail lives in the memo |
 
 ---
 

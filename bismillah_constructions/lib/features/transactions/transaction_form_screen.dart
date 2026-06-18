@@ -128,10 +128,11 @@ class _TransactionFormScreenState
           final selType =
               types.firstWhereOrNull((t) => t.name == _materialType);
           final uom = selType?.uom ?? '';
-          // Quantity is mandatory at this point — the field validator
-          // enforced it before _save() could run.
-          final qty = double.parse(_quantityCtrl.text.trim());
-          final unitPrice = amount / qty;
+          // Quantity is optional. When given, it feeds the price-trend
+          // report and is echoed into the memo as "qty @ unit price".
+          // When omitted, the buy is tracked by its memo alone.
+          final qtyText = _quantityCtrl.text.trim();
+          final qty = qtyText.isEmpty ? null : double.tryParse(qtyText);
           // Strip a trailing ".0" so "100.0 bag" reads as "100 bag".
           String trimZero(double v) {
             final s = v.toStringAsFixed(2);
@@ -139,17 +140,22 @@ class _TransactionFormScreenState
                 ? s.substring(0, s.length - 3)
                 : (s.endsWith('0') ? s.substring(0, s.length - 1) : s);
           }
-          final qtyStr =
-              '${trimZero(qty)}${uom.isNotEmpty ? ' $uom' : ''}';
-          final unitPriceStr = uom.isNotEmpty
-              ? '@ Rs ${trimZero(unitPrice)}/$uom'
-              : '@ Rs ${trimZero(unitPrice)}';
-          // Every material-buy ledger row will now read e.g.
-          //   "Cement · 100 bag · @ Rs 1,000/bag · for foundation"
-          // — so qty + unit price are visible in every ledger view
-          // without joining material_inventory at query time.
+          // Build the qty / unit-price memo fragments only when a quantity
+          // was entered. A quantity-less buy reads e.g.
+          //   "Cement · for foundation"
+          // while a quantified one reads e.g.
+          //   "Cement · 100 bag · @ Rs 1,000/bag · for foundation".
+          String? qtyStr;
+          String? unitPriceStr;
+          if (qty != null && qty > 0) {
+            final unitPrice = amount / qty;
+            qtyStr = '${trimZero(qty)}${uom.isNotEmpty ? ' $uom' : ''}';
+            unitPriceStr = uom.isNotEmpty
+                ? '@ Rs ${trimZero(unitPrice)}/$uom'
+                : '@ Rs ${trimZero(unitPrice)}';
+          }
           final fullMemo =
-              [_materialType!, qtyStr, unitPriceStr, ?desc].join(' · ');
+              [_materialType!, ?qtyStr, ?unitPriceStr, ?desc].join(' · ');
 
           // Branch on the counter-purchase toggle. Both paths book the
           // cost against Material Costs + log the inventory row with the
@@ -294,9 +300,10 @@ class _TransactionFormScreenState
                   onChanged: (v) => setState(() => _materialType = v),
                 ),
                 const SizedBox(height: 12),
-                // Quantity is now mandatory — the price-trend report
-                // depends on having a real per-unit rate. The label adapts
-                // to the selected type's unit of measure.
+                // Quantity is optional — when given it feeds the price-trend
+                // report (which needs a real per-unit rate); when left blank
+                // the buy is tracked by its memo alone. The label adapts to
+                // the selected type's unit of measure.
                 materialTypes.when(
                   loading: () => const SizedBox.shrink(),
                   error: (e, st) => const SizedBox.shrink(),
@@ -315,17 +322,18 @@ class _TransactionFormScreenState
                       ],
                       decoration: InputDecoration(
                         labelText: hasUom
-                            ? 'Quantity ($uom) *'
-                            : 'Quantity *',
+                            ? 'Quantity ($uom)'
+                            : 'Quantity',
                         helperText: hasUom
-                            ? 'How many $uom purchased'
-                            : 'Set a unit of measure for this material type '
-                              'in Manage → Material Types',
+                            ? 'Optional — how many $uom purchased '
+                              '(enables price trend)'
+                            : 'Optional — set a unit of measure in '
+                              'Manage → Material Types to track price trend',
                       ),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'Quantity is required';
-                        }
+                        // Optional: blank is fine. Only a non-empty value
+                        // must parse to a positive number.
+                        if (v == null || v.trim().isEmpty) return null;
                         final n = double.tryParse(v.trim());
                         if (n == null || n <= 0) {
                           return 'Must be greater than zero';

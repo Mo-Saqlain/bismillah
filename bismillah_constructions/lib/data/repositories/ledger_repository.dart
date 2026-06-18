@@ -1891,42 +1891,6 @@ class LedgerRepository {
     return out;
   }
 
-  // -------------------- Wage Register --------------------
-
-  /// Returns LABOUR_COSTS debits grouped by supplier (worker), with totals
-  /// over the optional `[from, to]` window.
-  Future<List<WageRegisterLine>> wageRegister(
-      {DateTime? from, DateTime? to}) async {
-    final where = StringBuffer(
-        'account_id = ? AND is_deleted = 0 AND debit > 0 AND supplier_id IS NOT NULL');
-    final args = <Object>[Accounts.labourCosts.id];
-    if (from != null) {
-      where.write(' AND created_at >= ?');
-      args.add(from.toUtc().toIso8601String());
-    }
-    if (to != null) {
-      // Inclusive upper bound — bump to next-day midnight to match the
-      // boundary handling everywhere else in this repo.
-      where.write(' AND created_at < ?');
-      args.add(to.add(const Duration(days: 1)).toUtc().toIso8601String());
-    }
-    final rows = await _db.rawQuery(
-      'SELECT supplier_id, COUNT(*) AS payments, SUM(debit) AS total, '
-      'MAX(created_at) AS last_paid '
-      'FROM journal_entries WHERE ${where.toString()} '
-      'GROUP BY supplier_id ORDER BY total DESC',
-      args,
-    );
-    return rows
-        .map((r) => WageRegisterLine(
-              supplierId: r['supplier_id'] as String,
-              paymentCount: (r['payments'] as num).toInt(),
-              totalPaid: (r['total'] as num).toDouble(),
-              lastPaidAt: DateTime.parse(r['last_paid'] as String),
-            ))
-        .toList();
-  }
-
   // -------------------- Budget vs Actual --------------------
 
   /// Per-category actual spend on a project, suitable for comparing against
@@ -1975,11 +1939,14 @@ class LedgerRepository {
         .toUtc()
         .subtract(Duration(days: 30 * monthsBack));
     // `is_deleted = 0` keeps the trend in sync with the ledger after a
-    // material buy is soft- or hard-deleted (v13 linkage).
+    // material buy is soft- or hard-deleted (v13 linkage). `rate IS NOT NULL`
+    // drops quantity-less buys (v17): without a quantity there is no real
+    // per-unit rate to plot — that purchase is tracked via its memo instead.
     final rows = await _db.rawQuery(
       'SELECT material_type, rate, created_at '
       'FROM material_inventory '
       'WHERE txn_type = ? AND created_at >= ? AND is_deleted = 0 '
+      'AND rate IS NOT NULL '
       'ORDER BY created_at ASC',
       [MaterialTxnType.purchase.db, cutoff.toIso8601String()],
     );
@@ -1992,29 +1959,6 @@ class LedgerRepository {
             date: DateTime.parse(r['created_at'] as String),
             rate: (r['rate'] as num).toDouble(),
           ));
-    }
-    return out;
-  }
-
-  // -------------------- Burn Chart --------------------
-
-  /// Cumulative project outflow series — one point per spend transaction.
-  Future<List<BurnPoint>> projectBurn(String projectId) async {
-    final rows = await _db.rawQuery(
-      'SELECT debit, created_at FROM journal_entries '
-      'WHERE is_deleted = 0 AND project_id = ? '
-      'AND account_id IN (?, ?) AND debit > 0 '
-      'ORDER BY created_at ASC',
-      [projectId, Accounts.materialCosts.id, Accounts.labourCosts.id],
-    );
-    final out = <BurnPoint>[];
-    var running = 0.0;
-    for (final r in rows) {
-      running += (r['debit'] as num).toDouble();
-      out.add(BurnPoint(
-        date: DateTime.parse(r['created_at'] as String),
-        cumulativeSpend: running,
-      ));
     }
     return out;
   }
