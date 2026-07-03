@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants.dart';
 import '../../core/formatters.dart';
 import '../../core/theme.dart';
 import '../../data/models/bank.dart';
@@ -778,15 +779,47 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-class _SyncIndicator extends StatelessWidget {
+/// App-bar sync control. Doubles as a status light and a tap-to-sync
+/// button: the icon reflects the live [SyncStatus], and tapping it kicks a
+/// forced manual sync (so it works even when background sync is toggled off
+/// in Settings). Hidden entirely when Supabase isn't configured in this
+/// build — there's nothing to sync to.
+class _SyncIndicator extends ConsumerWidget {
   const _SyncIndicator({required this.status});
   final AsyncValue<SyncStatus> status;
 
+  Future<void> _sync(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(
+      content: Text('Syncing with Supabase…'),
+      duration: Duration(seconds: 1),
+    ));
+    final svc = await ref.read(syncServiceFutureProvider.future);
+    // force: true so a tap still syncs even when the background toggle is off.
+    await svc.syncNow(force: true);
+    final s = svc.currentStatus;
+    if (!context.mounted) return;
+    messenger.showSnackBar(SnackBar(
+      content: Text(switch (s.state) {
+        SyncState.idle => 'Synced ✓',
+        SyncState.offline => 'Offline — will sync when back online',
+        SyncState.error => 'Sync failed: ${s.message ?? 'unknown error'}',
+        _ => 'Sync finished',
+      }),
+      duration: const Duration(seconds: 3),
+    ));
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!SupabaseConfig.configured) return const SizedBox.shrink();
     return status.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, _) => const Icon(Icons.cloud_off),
+      error: (_, _) => IconButton(
+        icon: const Icon(Icons.cloud_off),
+        tooltip: 'Tap to retry sync',
+        onPressed: () => _sync(context, ref),
+      ),
       data: (s) {
         final (icon, label) = switch (s.state) {
           SyncState.idle => (Icons.cloud_done, 'Synced'),
@@ -795,9 +828,18 @@ class _SyncIndicator extends StatelessWidget {
           SyncState.offline => (Icons.cloud_off, 'Offline'),
           SyncState.disabled => (Icons.cloud_outlined, 'Local'),
         };
-        return Tooltip(
-          message: '$label${s.pending > 0 ? ' · ${s.pending} pending' : ''}',
-          child: Icon(icon),
+        final syncing = s.state == SyncState.syncing;
+        return IconButton(
+          tooltip:
+              'Sync now · $label${s.pending > 0 ? ' · ${s.pending} pending' : ''}',
+          onPressed: syncing ? null : () => _sync(context, ref),
+          icon: syncing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(icon),
         );
       },
     );
