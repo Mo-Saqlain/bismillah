@@ -22,6 +22,8 @@ import 'package:bismillah_constructions/core/constants.dart';
 import 'package:bismillah_constructions/data/db/local_db.dart';
 import 'package:bismillah_constructions/data/repositories/entity_repository.dart';
 import 'package:bismillah_constructions/data/repositories/ledger_repository.dart';
+import 'package:bismillah_constructions/data/sync/sync_service.dart'
+    show serverTimestampIsNewer;
 
 late Database _db;
 late EntityRepository _entityRepo;
@@ -154,42 +156,81 @@ void main() {
     });
   });
 
-  group('Pull idempotency (INSERT OR IGNORE)', () {
-    test('Re-inserting a row with an existing id leaves the local copy '
-        'untouched (the "never destroy local writes" guarantee)',
-        () async {
-      // Local writes the row first.
+  group('Pull reconciliation — last-write-wins', () {
+    test('serverTimestampIsNewer compares by instant across timestamp formats',
+        () {
+      // Server rows use +00:00 + microseconds; local rows use Z + millis.
+      expect(
+          serverTimestampIsNewer('2026-07-09T13:38:15.000000+00:00',
+              '2026-07-09T13:38:14.999Z'),
+          isTrue);
+      expect(
+          serverTimestampIsNewer('2026-07-09T13:38:14.000000+00:00',
+              '2026-07-09T13:38:15.000Z'),
+          isFalse);
+      // Equal instant is NOT strictly newer → local wins.
+      expect(
+          serverTimestampIsNewer('2026-07-09T13:38:14.500000+00:00',
+              '2026-07-09T13:38:14.500Z'),
+          isFalse);
+      // Null handling: no local → server wins; no server → server loses.
+      expect(serverTimestampIsNewer('2026-07-09T13:38:14.500Z', null), isTrue);
+      expect(serverTimestampIsNewer(null, '2026-07-09T13:38:14.500Z'), isFalse);
+    });
+
+    test('a NEWER server row overwrites the local copy', () async {
       final pId = (await _entityRepo.createProject(
               name: 'Site A',
               model: ProjectModel.withMaterial,
               budget: 100000))
           .id;
-      // Local renames it after — this is the "device's own write" we
-      // must never lose.
+      final local =
+          (await _db.query('projects', where: 'id = ?', whereArgs: [pId]))
+              .first;
+      final localTs = local['updated_at'] as String;
+      // A pulled row that is strictly newer, with a different name.
+      final incoming = Map<String, Object?>.from(local)
+        ..['name'] = 'From cloud (newer)'
+        ..['updated_at'] = DateTime.now()
+            .toUtc()
+            .add(const Duration(minutes: 5))
+            .toIso8601String();
+      // Apply exactly as _pullTable does.
+      if (serverTimestampIsNewer(incoming['updated_at'] as String?, localTs)) {
+        await _db.update('projects', incoming,
+            where: 'id = ?', whereArgs: [pId]);
+      }
+      final after = await _entityRepo.project(pId);
+      expect(after!.name, 'From cloud (newer)');
+    });
+
+    test('an OLDER server row does NOT overwrite a newer local edit',
+        () async {
+      final pId = (await _entityRepo.createProject(
+              name: 'Site A',
+              model: ProjectModel.withMaterial,
+              budget: 100000))
+          .id;
+      // Local edit bumps updated_at to "now".
       await _entityRepo.updateProjectFields(pId, name: 'Locally renamed');
-
-      // Pull comes in with the original name (simulating the cloud copy
-      // before the local rename) — same id, different `name`.
-      final pullPayload = <String, Object?>{
-        'id': pId,
-        'name': 'Original from cloud',
-        'model': ProjectModel.withMaterial.db,
-        'status': ProjectStatus.active.db,
-        'completion_percent': 0,
-        'is_archived': 0,
-        'created_at': DateTime.now().toUtc().toIso8601String(),
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      };
-      // SyncService uses ConflictAlgorithm.ignore — identical semantics.
-      await _db.insert(
-        'projects',
-        pullPayload,
-        conflictAlgorithm: ConflictAlgorithm.ignore,
-      );
-
+      final local =
+          (await _db.query('projects', where: 'id = ?', whereArgs: [pId]))
+              .first;
+      final localTs = local['updated_at'] as String;
+      // A stale pulled row (older timestamp) tries to overwrite.
+      final incoming = Map<String, Object?>.from(local)
+        ..['name'] = 'Stale cloud name'
+        ..['updated_at'] = DateTime.now()
+            .toUtc()
+            .subtract(const Duration(hours: 1))
+            .toIso8601String();
+      if (serverTimestampIsNewer(incoming['updated_at'] as String?, localTs)) {
+        await _db.update('projects', incoming,
+            where: 'id = ?', whereArgs: [pId]);
+      }
       final after = await _entityRepo.project(pId);
       expect(after!.name, 'Locally renamed',
-          reason: 'pulled row must NOT overwrite the local copy');
+          reason: 'a stale server row must not clobber a newer local edit');
     });
 
     test('A row with a brand-new id from the cloud lands successfully',

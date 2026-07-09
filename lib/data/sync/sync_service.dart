@@ -63,6 +63,25 @@ class SyncTableDiag {
   });
 }
 
+/// True when [server] is a strictly newer instant than [local] — the
+/// last-write-wins decision the pull uses to overwrite a local row.
+///
+/// Both are parsed to `DateTime` before comparing: server rows carry a
+/// `+00:00` offset while local rows use a trailing `Z` (and differing
+/// sub-second precision), so a raw string compare would be wrong; comparing
+/// instants is correct regardless of format. A null local always loses; a
+/// null (or unparseable) server never wins. Public so the reconciliation
+/// rule can be unit-tested directly.
+bool serverTimestampIsNewer(String? server, String? local) {
+  if (server == null) return false;
+  if (local == null) return true;
+  final s = DateTime.tryParse(server);
+  final l = DateTime.tryParse(local);
+  if (s == null) return false;
+  if (l == null) return true;
+  return s.isAfter(l);
+}
+
 /// Tables that mirror to Supabase. Order matters for **pull** — rows are
 /// inserted in this order so foreign keys resolve (projects before
 /// material_inventory, suppliers before journal_entries, etc.).
@@ -329,17 +348,29 @@ class SyncService {
       await db.transaction((txn) async {
         for (final r in rows) {
           final local = _fromRemote(r, table);
-          // INSERT OR IGNORE — if the id exists locally, the remote row
-          // is dropped. This is the "never overwrite local writes"
-          // guarantee. Soft-deletes propagate too: a row with
-          // is_deleted=1 from the cloud only lands if it didn't already
-          // exist locally; if it did, the local copy decides whether
-          // it's deleted.
-          await txn.insert(
-            table,
-            local,
-            conflictAlgorithm: ConflictAlgorithm.ignore,
-          );
+          // Last-write-wins: Supabase is the source of truth for the latest
+          // edit. A brand-new id inserts; an existing id is overwritten only
+          // when the server row's `updated_at` is strictly newer than the
+          // local one (so a genuine local edit made offline isn't clobbered
+          // by a stale server copy). Edits and soft-deletes therefore
+          // propagate across devices, while everything stays offline-capable.
+          //
+          // Safe against ping-pong: migration 0005 drops the server-side
+          // auto-bump trigger, so re-pushing a just-pulled row is a no-op
+          // upsert that doesn't change its timestamp.
+          final id = local['id'];
+          final existing = await txn.query(table,
+              columns: ['updated_at'],
+              where: 'id = ?',
+              whereArgs: [id],
+              limit: 1);
+          if (existing.isEmpty) {
+            await txn.insert(table, local,
+                conflictAlgorithm: ConflictAlgorithm.replace);
+          } else if (serverTimestampIsNewer(local['updated_at'] as String?,
+              existing.first['updated_at'] as String?)) {
+            await txn.update(table, local, where: 'id = ?', whereArgs: [id]);
+          }
         }
       });
 
@@ -363,11 +394,12 @@ class SyncService {
 
   // ── Row shape conversion ──────────────────────────────────────────────
 
-  /// Local row → Supabase payload. Adds tenant_id, drops the
-  /// SQLite-only `synced` column (legacy from the v1 push design),
-  /// leaves `updated_at` as-is so Postgres preserves the local
-  /// monotonic ordering on first push (subsequent updates get a fresh
-  /// server-side timestamp via the bump trigger).
+  /// Local row → Supabase payload. Adds tenant_id, drops the SQLite-only
+  /// `synced` column (legacy from the v1 push design). `updated_at` is left
+  /// as-is and is **client-authoritative**: the server-side auto-bump trigger
+  /// is removed (migration 0005), so Postgres stores exactly the timestamp
+  /// the writing device set. That keeps last-write-wins deterministic and
+  /// stops a re-pushed pulled row from ping-ponging its timestamp.
   Map<String, Object?> _toRemote(
       Map<String, Object?> row, String table, String tenantId) {
     final out = Map<String, Object?>.from(row)..['tenant_id'] = tenantId;

@@ -108,10 +108,19 @@ regenerates any of them if ever needed.
   *optional*, not mandatory). There is no WhatsApp Business API and no
   auto-send — the operator taps send in WhatsApp. Number normalization
   (`core/whatsapp.dart`) defaults to Pakistan (+92).
-- **Cloud sync is INSERT OR IGNORE.** Pulled rows that exist locally
-  are skipped. The server is a mirror of every device's writes; it
-  never overwrites a local row. If you change this, document why —
-  every other safety rail in sync depends on it.
+- **Cloud sync is last-write-wins; Supabase is the source of truth.**
+  Pull upserts by id: a new id inserts; an existing id is overwritten
+  only when the server row's `updated_at` is strictly newer
+  (`serverTimestampIsNewer` — parses both sides to instants because
+  server rows use `+00:00`/micros and local rows use `Z`/millis). So
+  edits and soft-deletes propagate across devices, and it's still fully
+  offline-capable. `updated_at` is **client-authoritative** — the
+  server-side auto-bump trigger is dropped (migration 0005) so a
+  re-pushed pulled row can't ping-pong its timestamp. Trade-off: the
+  same record edited on two devices while both are offline resolves to
+  whichever syncs with the later timestamp (the other edit is lost) —
+  acceptable for a single operator; bulletproofing would need per-field
+  merge / a dirty flag, which is overkill here.
 - **Tenant identity is baked into the build (`SUPABASE_TENANT_ID`).**
   `ensureTenantId()` returns the build-time `SupabaseConfig.tenantId`
   when set, so **every install of the operator's APK shares one tenant**
