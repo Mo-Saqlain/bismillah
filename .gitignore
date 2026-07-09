@@ -40,7 +40,7 @@ app.*.map.json
 /android/app/release/
 
 # ── Secrets: release signing key + cloud credentials — NEVER commit ─────
-secrets/
+secrets/*
 !secrets/dart_defines.example.json
 android/key.properties
 *.jks
