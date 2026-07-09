@@ -164,11 +164,12 @@ multi-device use.
   start and on demand, using an `updated_at` cursor per table.
 - **INSERT-only** conflict resolution — a local write is never
   overwritten by the server. The cloud mirrors every device's writes.
-- **Tenant id** — one UUID per operator, generated on first sync.
-  Copy it to a second device (Settings → Cloud Sync → Tenant ID) so
-  both see the same data. ⚠️ A fresh install mints a *new* tenant, so
-  reinstalling without copying the id orphans earlier data under a
-  separate tenant.
+- **Tenant id** — a single fixed UUID **baked into the build**
+  (`SUPABASE_TENANT_ID` in `secrets/dart_defines.json`). Every install
+  of your APK uses it, so a fresh install / new phone syncs your data
+  from the first launch — no login and no manual Tenant-ID copying.
+  (Leave the define empty to fall back to the legacy random-per-install
+  tenant.)
 - **Sync diagnostics** (Settings → Cloud Sync) shows per-table
   `here / cloud / all-tenants` row counts so you can see exactly what
   is and isn't synced, and **Re-pull everything** safely re-downloads

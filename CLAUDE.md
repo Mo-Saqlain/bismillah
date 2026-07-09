@@ -112,14 +112,21 @@ regenerates any of them if ever needed.
   are skipped. The server is a mirror of every device's writes; it
   never overwrites a local row. If you change this, document why —
   every other safety rail in sync depends on it.
-- **Sync tenant fragmentation is the #1 support issue.** `ensureTenantId()`
-  mints a fresh UUID per install, so reinstalling orphans earlier data
-  under a separate `tenant_id`. Settings → Cloud Sync → **Sync
+- **Tenant identity is baked into the build (`SUPABASE_TENANT_ID`).**
+  `ensureTenantId()` returns the build-time `SupabaseConfig.tenantId`
+  when set, so **every install of the operator's APK shares one tenant**
+  and sync works from first launch — no login, no per-install random
+  tenant, no manual Tenant-ID copying. Only when the define is empty
+  (e.g. tests) does it fall back to generate-a-random-UUID-once.
+  Historically the random-per-install behaviour caused **tenant
+  fragmentation** (reinstalling orphaned data under a new tenant) — the
+  #1 support issue the baked tenant fixes. Settings → Cloud Sync → **Sync
   diagnostics** (`SyncService.diagnostics()`) shows per-table `local /
-  cloud(this tenant) / all(every tenant)` counts to diagnose it, and
-  **Re-pull everything** (`fullRepull()` → `resetPullCursors()`) safely
-  re-downloads under the current tenant. To merge fragmented data,
-  unify `projects.tenant_id` on the server to one value.
+  cloud(this tenant) / all(every tenant)` counts to spot any legacy
+  fragmentation, and **Re-pull everything** (`fullRepull()` →
+  `resetPullCursors()`) safely re-downloads under the current tenant. To
+  merge legacy fragmented data, re-tag every synced table's `tenant_id`
+  on the server to the one baked value.
 - **Operational-memory layer (v14) sits beside the ledger, not in it.**
   `notes` and `follow_ups` never post journal entries — they never
   touch P&L or the balance sheet. `change_log` is backward-looking
@@ -141,8 +148,11 @@ regenerates any of them if ever needed.
 - **No customer entity.** v16 removed it. Projects are the only
   counterparty, and "receivables" means under-funded projects (FIFO
   over the cost queue), not customer invoices.
-- **No user accounts / login.** Single operator. Supabase sync uses a
-  tenant id baked into the install, not a per-user JWT.
+- **No user accounts / login.** Single operator. Supabase sync scopes
+  data by a fixed `tenant_id` baked into the build (`SUPABASE_TENANT_ID`),
+  not a per-user JWT. RLS is open; the APK's privacy is the security
+  boundary. (A real login — Supabase Auth keyed to `auth.uid()` — is the
+  upgrade path if data ever needs actual protection or multiple users.)
 - **No automatic crash reporting.** `core/error_reporter.dart` keeps
   the last 100 errors in memory and surfaces them via Settings →
   Recent Errors. The user copy-pastes them into WhatsApp.

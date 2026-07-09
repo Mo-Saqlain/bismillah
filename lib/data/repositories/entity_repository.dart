@@ -1183,15 +1183,25 @@ class EntityRepository {
 
   // ---- Cloud sync state (v15) ----
 
-  /// Returns the tenant UUID for this operator's data scope on
-  /// Supabase. Lazily generated on first call and persisted to
-  /// `app_settings` — every subsequent call returns the same value.
+  /// Returns the tenant UUID for this operator's data scope on Supabase.
   ///
-  /// To migrate a second device onto an existing tenant: copy the value
-  /// from the first device (Settings → Cloud Sync → Tenant ID → Copy)
-  /// and call [setTenantId] on the second device **before** any cloud
-  /// sync runs, so push doesn't tag rows with the fresh UUID.
+  /// Resolution order:
+  ///   1. **Build-time fixed tenant** (`SupabaseConfig.tenantId`, from the
+  ///      `SUPABASE_TENANT_ID` dart-define). When set it always wins and is
+  ///      persisted, so every install of this build shares one tenant and
+  ///      sync works from first launch with no manual copying. It also
+  ///      overrides any stale random tenant a previous build stored.
+  ///   2. Otherwise the value previously stored in `app_settings`.
+  ///   3. Otherwise a fresh random UUID, generated once and persisted
+  ///      (legacy per-install behaviour, used only in builds with no baked
+  ///      tenant — e.g. tests).
   Future<String> ensureTenantId() async {
+    final baked = SupabaseConfig.tenantId;
+    if (baked.isNotEmpty) {
+      final existing = await getSetting(SettingsKeys.tenantId);
+      if (existing != baked) await setSetting(SettingsKeys.tenantId, baked);
+      return baked;
+    }
     final existing = await getSetting(SettingsKeys.tenantId);
     if (existing != null && existing.isNotEmpty) return existing;
     final fresh = _uuid.v4();

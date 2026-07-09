@@ -272,5 +272,16 @@ class SupabaseConfig {
   static const url = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
   static const anonKey =
       String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
+
+  /// Optional fixed tenant id baked into the build. When set, every install
+  /// of this APK shares this one tenant, so cloud sync "just works" from the
+  /// first launch — no per-install random tenant, no manual Tenant-ID copying
+  /// on reinstall. Fits the single-operator model (the APK is private to the
+  /// operator; the anon key is already baked in, so this adds no new
+  /// exposure). Leave empty to fall back to the legacy
+  /// generate-a-random-tenant-once-per-install behaviour.
+  static const tenantId =
+      String.fromEnvironment('SUPABASE_TENANT_ID', defaultValue: '');
+
   static bool get configured => url.isNotEmpty && anonKey.isNotEmpty;
 }
