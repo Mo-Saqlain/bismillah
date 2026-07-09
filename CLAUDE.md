@@ -23,13 +23,22 @@ the app). The whole user model is "one person running multiple
 construction projects". Offline-first; optional Supabase cloud sync
 for multi-device use.
 
+**Repo layout:** the Flutter app lives at the **repository root** —
+`lib/`, `android/`, `test/`, `pubspec.yaml` are all top-level. (It used
+to sit in a nested `bismillah_constructions/` folder; that was flattened
+away.) The only shipped platform is **Android** — `ios/`, `macos/`,
+`linux/`, `web/`, `windows/` were removed. `flutter create . --platforms=…`
+regenerates any of them if ever needed.
+
 ---
 
 ## Load-bearing invariants — break these and the app stops working
 
 1. **Every ledger write goes through `LedgerRepository._post()`.** Two
    rows per transaction, sharing a `transaction_id`. Direct DB writes
-   to `journal_entries` are forbidden.
+   to `journal_entries` are forbidden. `_post` also writes the
+   `change_log` "create" audit row (see invariant 6) inside the same
+   transaction.
 2. **`incomeFigures()` is the only source of truth for P&L.** The
    dashboard, Income Statement, BvA banner and Monthly P&L Trend all
    consume it. Changing recognition logic here changes the whole app.
@@ -42,12 +51,20 @@ for multi-device use.
 4. **Time-of-day boundary handling.** Date filters use
    `created_at >= from` and `created_at < (to + 1 day)` everywhere —
    `<= to` would exclude everything after midnight on the `to` day.
-   Two breakdown helpers had this bug and were fixed; if you add a
-   new windowed query, copy the pattern (see `accountBalance`).
+   If you add a new windowed query, copy the pattern (see
+   `accountBalance`).
 5. **`postLabourPayment` smart settle.** Pays the outstanding wage
    credit first before booking a new direct labour cost. Don't
    "simplify" this — without it, paying a worker after recording
    credit double-counts the cost.
+6. **`change_log` records creation too, not just edits/deletes.**
+   `_post` logs a `ChangeAction.create` for every transaction;
+   `createProject/createSupplier/createBank` log one for the entity.
+   The payload lives in `new_data`. The Activity Log screen decodes
+   `original_data ?? new_data`. Any exhaustive `switch` over
+   `ChangeAction` must handle `create` (there are three:
+   `constants.dart` label, and `_iconFor`/`_tintFor` in
+   `change_log_screen.dart`).
 
 ---
 
@@ -58,40 +75,64 @@ for multi-device use.
   not `costs / budget × contract`. The cost-recovery variant is
   conservative — zero gross profit until close, no "fake profit"
   from advance payments.
-- **Net Worth balance sheet, no equity plug.** The business holds no
-  contributed capital; `Assets − Liabilities = Net Worth`.
-  Cumulative recognized profit is shown as a cross-check memo, not
-  an equity line. Net Worth and Accumulated Profit can diverge while
-  projects are in progress (the BS counts unfunded WM costs as
-  `projectReceivables` while the P&L defers recognition); they
-  converge as projects close.
-- **`agingProjectReceivables` is FIFO over the entire ledger**, not
-  a per-invoice table. We walk costs and revenue credits in time
-  order per project, banking customer prepayments to consume later
-  costs before they queue as "owed". That's why dropping the
-  Customer entity was viable.
-- **Monthly P&L Trend uses cumulative deltas, not per-month
-  windows.** A window-only `min(received-in-month, costs-in-month)`
-  collapses to 0 in most months because payment timing and cost
-  timing don't align. Cumulative-delta keeps PoC's "match revenue
-  to costs" intact across the project's whole life, and the
-  per-month bucket is just the delta. `closeAsOf` is passed so a
-  project archived this week doesn't retroactively change what
-  February looked like.
+- **Net Worth balance sheet, no equity plug.** `Assets − Liabilities
+  = Net Worth`. Cumulative recognized profit is a cross-check memo,
+  not an equity line. Net Worth and Accumulated Profit can diverge
+  while projects are in progress and converge as they close.
+- **`agingProjectReceivables` is FIFO over the entire ledger**, not a
+  per-invoice table. We walk costs and revenue credits in time order
+  per project, banking prepayments to consume later costs before they
+  queue as "owed". That's why dropping the Customer entity was viable.
+- **Monthly P&L Trend uses cumulative deltas, not per-month windows.**
+  A window-only `min(received-in-month, costs-in-month)` collapses to
+  0 in most months. Cumulative-delta keeps PoC's "match revenue to
+  costs" intact across the project's whole life; the per-month bucket
+  is the delta. `closeAsOf` is passed so a project archived this week
+  doesn't retroactively change what February looked like.
+- **Labour-Rate service fee is either a percentage OR a fixed amount.**
+  `ServiceFeeType.{percent,fixed}` on the project. **`Project.serviceFeeOn(totalSpent)`
+  is the single source of truth for the fee math** — fixed returns the
+  flat `serviceFeeAmount` regardless of spend; percent returns
+  `serviceFeePercent%` of spend. `labourRateCloseSummary` mirrors it.
+  A fixed fee can leave the customer owing the shortfall (fee + costs >
+  received); the LR archive gate (`ledgerNet == 0`) still enforces
+  settlement, unchanged, because the fee is posted the same way (Dr
+  Project Revenue / Cr Service Fee Income).
+- **WhatsApp-on-transaction is a deep link, not an API.** After a
+  transaction saves, `_maybePromptWhatsApp` offers to open WhatsApp
+  (`wa.me/<number>?text=…` via `url_launcher`) pre-filled to the
+  **counterparty** — the supplier (its `phone`) for material/labour/
+  supplier-pay, or the project (its `whatsapp`) for a receipt. No
+  counterparty (transfer, personal draw, counter purchase) → no
+  prompt. No number on file → silently skipped (the number is
+  *optional*, not mandatory). There is no WhatsApp Business API and no
+  auto-send — the operator taps send in WhatsApp. Number normalization
+  (`core/whatsapp.dart`) defaults to Pakistan (+92).
 - **Cloud sync is INSERT OR IGNORE.** Pulled rows that exist locally
   are skipped. The server is a mirror of every device's writes; it
   never overwrites a local row. If you change this, document why —
-  every other safety rail in sync depends on this not happening.
-- **Operational-memory layer (v14) sits beside the ledger, not in
-  it.** `notes` (free-text, pinnable, attached to a project or
-  supplier) and `follow_ups` (forward-looking payment-promise /
-  recovery tracking) are separate from `change_log` (backward-looking
-  audit). None of them post journal entries — they never touch P&L or
-  the balance sheet.
+  every other safety rail in sync depends on it.
+- **Sync tenant fragmentation is the #1 support issue.** `ensureTenantId()`
+  mints a fresh UUID per install, so reinstalling orphans earlier data
+  under a separate `tenant_id`. Settings → Cloud Sync → **Sync
+  diagnostics** (`SyncService.diagnostics()`) shows per-table `local /
+  cloud(this tenant) / all(every tenant)` counts to diagnose it, and
+  **Re-pull everything** (`fullRepull()` → `resetPullCursors()`) safely
+  re-downloads under the current tenant. To merge fragmented data,
+  unify `projects.tenant_id` on the server to one value.
+- **Operational-memory layer (v14) sits beside the ledger, not in it.**
+  `notes` and `follow_ups` never post journal entries — they never
+  touch P&L or the balance sheet. `change_log` is backward-looking
+  audit (now including creates).
 - **Cash Runway is a derived signal, not a stored value.** `days =
   liquid cash ÷ average daily burn` over the active spending window;
-  the banner colours green ≥ 30d, yellow 15–30d, red < 15d. Recomputed
-  live off `ledgerVersionProvider`.
+  green ≥ 30d, yellow 15–30d, red < 15d. Recomputed live off
+  `ledgerVersionProvider`.
+- **OS text scale is clamped to 1.3×** in `app.dart`'s `MaterialApp.builder`
+  so a phone set to a large font / display size can't blow fixed rows
+  and cards out of shape. The New Transaction / Manage / Reports tiles
+  are also intentionally single-line (no descriptive subtitle) for the
+  same reason.
 
 ---
 
@@ -100,57 +141,62 @@ for multi-device use.
 - **No customer entity.** v16 removed it. Projects are the only
   counterparty, and "receivables" means under-funded projects (FIFO
   over the cost queue), not customer invoices.
-- **No user accounts / login.** Single operator. Supabase sync uses
-  a tenant id baked into the install, not a per-user JWT.
+- **No user accounts / login.** Single operator. Supabase sync uses a
+  tenant id baked into the install, not a per-user JWT.
 - **No automatic crash reporting.** `core/error_reporter.dart` keeps
   the last 100 errors in memory and surfaces them via Settings →
   Recent Errors. The user copy-pastes them into WhatsApp.
-- **No invoicing / quotes / payslips.** This is an accounting app
-  for the owner, not a customer-facing system.
+- **No invoicing / quotes / payslips.** This is an accounting app for
+  the owner, not a customer-facing system. The WhatsApp prompt sends a
+  plain-text confirmation, not a formatted invoice.
 
 ---
 
 ## Where things live
 
 - **Chart of accounts** — `lib/core/constants.dart` → `Accounts`.
+  Also holds the `ServiceFeeType` and `ChangeAction` enums.
 - **Single ledger writer** — `lib/data/repositories/ledger_repository.dart`.
-- **Result classes** — same file's `part` —
-  `ledger_repository_models.dart`.
-- **Provider barrel** — `lib/providers/providers.dart` re-exports
-  every provider. Always import the barrel, not the split files.
-- **AccountSummary** — `lib/providers/account_summary.dart`. Holds
-  every derived dashboard number including `customerDeposits`,
-  `projectReceivables`, `supplierOverpayments`, `lossProvision`.
+- **Result classes** — same file's `part` — `ledger_repository_models.dart`
+  (`LabourRateClose` carries `feeType`).
+- **Provider barrel** — `lib/providers/providers.dart` re-exports every
+  provider. Always import the barrel, not the split files.
+- **AccountSummary** — `lib/providers/account_summary.dart`. Every
+  derived dashboard number.
 - **Cash Runway** — `lib/providers/cash_runway.dart`.
 - **Entities + operational memory** — `entity_repository.dart` owns
-  suppliers, banks, projects, material/labour type defs, counter
-  entities, **notes** and **follow-ups**. UI: `notes/notes_panel.dart`,
-  `followups/followups_screen.dart`, `projects/site_snapshot_screen.dart`.
-- **Backup / restore** — `lib/data/services/backup_service.dart`
-  (raw `.db` file copy); UI in `settings/backups_list_screen.dart`
-  and `common/restore_gateway.dart`.
-- **Migrations** — `lib/data/db/local_db.dart` `_migrate`. v1..v17.
-- **Cloud sync** — `lib/data/sync/sync_service.dart`.
-- **Supabase schema** — `supabase/migrations/` (`0001_initial.sql`
-  + `0002_material_quantity_optional.sql`); apply order matters.
+  suppliers, banks, projects (incl. `whatsapp`, `serviceFeeType`,
+  `serviceFeeAmount`), material/labour type defs, counter entities,
+  notes, follow-ups, the `change_log` writer (`logChange`), and the
+  cloud-sync cursors (incl. `resetPullCursors`).
+- **WhatsApp deep-link helper** — `lib/core/whatsapp.dart`
+  (`normalizeWhatsAppNumber`, `launchWhatsApp`). The post-transaction
+  prompt lives in `transaction_form_screen.dart`.
+- **Backup / restore** — `lib/data/services/backup_service.dart`; UI in
+  `settings/backups_list_screen.dart` and `common/restore_gateway.dart`.
+- **Migrations** — `lib/data/db/local_db.dart` `_migrate`. v1..v19.
+- **Cloud sync** — `lib/data/sync/sync_service.dart` (`syncNow`,
+  `fullRepull`, `diagnostics`, `SyncTableDiag`). Settings UI in
+  `settings/settings_screen.dart`.
+- **Supabase schema** — `supabase/migrations/` (`0001_initial.sql` +
+  `0002_material_quantity_optional.sql` + `0003_service_fee_fixed.sql`
+  + `0004_project_whatsapp.sql`); apply order matters.
 - **Run-with-cloud helper** — `scripts/run_with_supabase.ps1` injects
-  the Supabase URL/key as `--dart-define`s so sync works in `flutter run`.
+  the Supabase URL/key as `--dart-define`s (from `secrets/dart_defines.json`).
 
 ---
 
 ## Coding conventions
 
-- Repositories never import `package:flutter/*`. Pure Dart so they
-  run under `sqflite_common_ffi` in tests with no mocks.
-- Comments reserved for the *why*. Don't document what the code
-  does — the code already does that.
+- Repositories never import `package:flutter/*`. Pure Dart so they run
+  under `sqflite_common_ffi` in tests with no mocks.
+- Comments reserved for the *why*. Don't document what the code does.
 - Money is stored as `REAL` (double), formatted via `fmtMoney` /
   `fmtSignedMoney` / `fmtCompactMoney`. PKR, no decimals in the UI.
-- Times stored as ISO-8601 UTC; displayed via `fmtDate` /
-  `fmtDateTime` in local time.
-- Positive/negative colouring uses
-  `BalanceColors.signed(context, value)` — never hard-coded
-  `Colors.green` / `Colors.red`.
+- Times stored as ISO-8601 UTC; displayed via `fmtDate` / `fmtDateTime`
+  in local time.
+- Positive/negative colouring uses `BalanceColors.signed(context, value)`
+  — never hard-coded `Colors.green` / `Colors.red`.
 - After any mutation, `bumpLedger(ref)` invalidates the
   `ledgerVersionProvider` so dependent screens refetch.
 
@@ -158,7 +204,7 @@ for multi-device use.
 
 ## Test-running notes
 
-- `flutter test` runs everything (currently 107 tests).
+- `flutter test` runs everything (currently 113 tests).
 - Tests use `sqflite_common_ffi` with an in-memory or temp-file DB.
   Schema is applied via `LocalDb.applySchemaForTests` so production
   migrations are exercised on every run.
@@ -169,13 +215,12 @@ for multi-device use.
 
 ## When changing recognition logic
 
-1. Decide whether to put it in `incomeFigures()` (one source of
-   truth) or layer on top. Almost always: in `incomeFigures()`.
+1. Decide whether to put it in `incomeFigures()` (one source of truth)
+   or layer on top. Almost always: in `incomeFigures()`.
 2. Add a test in `business_logic_test.dart` that pins the new
    behaviour with explicit numbers.
-3. Check Monthly P&L Trend: cumulative deltas mean a change to
-   `incomeFigures` flows automatically — but verify the trend chart
-   still looks sane.
+3. Check Monthly P&L Trend: cumulative deltas mean a change flows
+   automatically — but verify the trend chart still looks sane.
 4. Update the Income Statement narrative if the user-visible story
    changed.
 
@@ -183,12 +228,13 @@ for multi-device use.
 
 ## When changing the schema
 
-1. Bump the `version: N` constant in `local_db.dart`.
+1. Bump the `version: N` constant in `local_db.dart` **and** the
+   `applySchemaForTests` argument.
 2. Add a migration block to `_migrate` covering N-1 → N.
 3. Update `_onCreate` so a fresh install gets the new state in one
    shot — don't rely on migrations being walked on first launch.
 4. If the table is synced, add a **new** numbered file under
-   `supabase/migrations/` (don't edit `0001_initial.sql` — it's the
-   baseline) and remember the user has to apply it in their Supabase
-   project before the next sync.
+   `supabase/migrations/` (don't edit `0001_initial.sql`) and remember
+   the user must apply it in their Supabase project (SQL Editor) before
+   the next sync — the app never runs DDL against Supabase.
 5. Add the version to TECHNICAL.md §12.

@@ -1,15 +1,17 @@
 # Run or build Bismillah with cloud sync enabled.
-# Credentials live in bismillah_constructions/secrets/dart_defines.json (gitignored).
+# The Flutter app lives at the repository root (flattened from the old
+# bismillah_constructions/ subfolder). Credentials live in
+# secrets/dart_defines.json (gitignored).
 param(
-  [ValidateSet('run', 'build-apk', 'build-windows')]
+  [ValidateSet('run', 'build-apk')]
   [string]$Action = 'run',
   [string]$Device
 )
 
 $ErrorActionPreference = 'Stop'
+# scripts/ sits at the repo root, so the app root is this script's parent dir.
 $root = Split-Path $PSScriptRoot -Parent
-$app = Join-Path $root 'bismillah_constructions'
-$defines = Join-Path $app 'secrets\dart_defines.json'
+$defines = Join-Path $root 'secrets\dart_defines.json'
 
 if (-not (Test-Path $defines)) {
   Write-Error @"
@@ -18,7 +20,7 @@ Copy secrets\dart_defines.example.json to secrets\dart_defines.json and fill in 
 "@
 }
 
-Set-Location $app
+Set-Location $root
 
 $common = @('--dart-define-from-file=secrets/dart_defines.json')
 
@@ -32,8 +34,5 @@ switch ($Action) {
   }
   'build-apk' {
     flutter build apk --release @common
-  }
-  'build-windows' {
-    flutter build windows --release @common
   }
 }

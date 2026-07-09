@@ -1,10 +1,14 @@
 # Bismillah Constructions ERP
 
-Offline-first, double-entry construction-project ledger built in Flutter.
-Designed for a single operator running multiple sites: cash, banks,
-suppliers, materials, labour, project P&L — all in one place, with a
-local backup that survives app uninstall on most Android devices and
-optional cloud sync to Supabase for multi-device use.
+Offline-first, double-entry construction-project ledger built in Flutter
+for **Android**. Designed for a single operator running multiple sites:
+cash, banks, suppliers, materials, labour, project P&L — all in one
+place, with a local backup that survives app uninstall on most Android
+devices and optional cloud sync to Supabase for multi-device use.
+
+> **Repo layout:** the Flutter app lives at the **repository root**
+> (`lib/`, `android/`, `test/`, `pubspec.yaml`). Android is the only
+> shipped platform.
 
 ---
 
@@ -21,30 +25,43 @@ recognized.
 
 - **With Material** — you buy the materials and pay labour, customer
   pays a fixed contract price. Profit = received − costs.
-- **Labour Rate** — you handle labour only and earn a fixed % service
-  fee on the work. Customer money is pass-through; service fee is the
+- **Labour Rate** — you handle labour only and earn a service fee on
+  the work. The fee is **either a percentage of total spend or a fixed
+  rupee amount** (e.g. a flat Rs 500,000 regardless of spend), chosen
+  per project. Customer money is pass-through; the service fee is the
   only revenue.
 
-### Nine canonical transaction kinds
+### The transaction picker
 
-Every entry is a balanced double-entry pair. The Transaction Picker
-exposes:
+Every entry is a balanced double-entry pair. The New Transaction picker
+exposes seven kinds:
 
-1. **Material Buy (Credit)** — supplier credit purchase.
-2. **Material Buy (Counter Purchase)** — cash buy at a shop with no
-   supplier credit relationship.
-3. **Labour Payment** — smart-settle: if the worker has an outstanding
+1. **Material Buy** — supplier credit purchase. A **Counter purchase**
+   toggle switches it to a cash buy at a shop (no supplier credit).
+2. **Labour Payment** — smart-settle: if the worker has an outstanding
    wage credit, the payment clears it first instead of double-booking
    the cost.
-4. **Labour on Credit** — wages incurred, not yet paid.
-5. **Supplier Payment** — settle an outstanding payable.
-6. **Receive from Project** — money in from the customer.
-7. **Wallet Transfer** — move between your own cash / bank accounts.
-8. **Personal / Owner Draw** — non-construction outflow.
-9. **Service Fee Logged** — earn the % fee (LR projects only).
+3. **Labour on Credit** — wages incurred, not yet paid.
+4. **Supplier Payment** — settle an outstanding payable.
+5. **Receive from Project** — money in from the customer.
+6. **Wallet Transfer** — move between your own cash / bank accounts.
+7. **Personal / Owner Draw** — non-construction outflow.
 
-Material purchases always require a **quantity** — this powers the
-Material Price Trend report.
+Material purchases take an **optional** quantity — when provided it
+powers the Material Price Trend report; when omitted the buy is tracked
+by its memo alone. The Labour-Rate **service fee is not a manual entry**
+— it's configured on the project (percentage or fixed) and posted
+automatically as a reclassification when the project is reconciled/closed.
+
+### WhatsApp confirmation on each transaction
+
+After a transaction is saved, the app offers to open **WhatsApp**
+pre-filled with a confirmation message to the transaction's
+**counterparty** — the supplier for material/labour/supplier payments,
+or the project's client for money received. You tap send in WhatsApp
+(there's no automated sending). Suppliers use their existing phone
+number; projects have a dedicated WhatsApp field. If the party has no
+number on file the prompt is simply skipped.
 
 ### Percentage-of-Completion revenue recognition
 
@@ -69,7 +86,8 @@ the project hasn't closed yet. No hiding losses until reconciliation.
   budget down.
 - **Labour-Rate** projects need their pass-through ledger to net to
   zero after service-fee reclassification — refund or collect the
-  residual before archiving.
+  residual before archiving. (With a fixed fee, this can mean the
+  customer still owes fee + cost shortfall.)
 
 ### Operational memory
 
@@ -83,199 +101,144 @@ between visits:
   cost (driven by an owner-entered completion% slider), projected
   cash gap and projected final profit. Risk band (green/amber/red).
 - **Closure Assistant** — gated walkthrough of what's still wrong
-  before a project can be archived: outstanding payables, budget
-  mismatch, missing service-fee reclassification for LR.
+  before a project can be archived.
 - **Follow-Ups** — recovery / billing reminders with expected date,
   priority, amount estimate; overdue tile on the dashboard.
 
 ### Dashboard
 
 - **Treasury** — Net Liquidity, Net Position, Net Worth in one card,
-  with a "Profit Illusion" insight that explains how much of your
-  cash is earmarked for unpaid bills.
+  with a "Profit Illusion" insight explaining how much cash is
+  earmarked for unpaid bills.
 - **Wallets & Banks** grid — Cash plus every user-defined bank /
   wallet tile, tappable into its ledger.
-- **Payables / Receivables** summary tiles.
-- **Customer Deposits** tile — money received but not yet earned.
-- **Projects at Risk** — projects ≥ 80% of budget, over-budget jobs
-  flagged first.
-- **Overdue Follow-Ups** — recovery reminders past their expected
-  date.
-- **Cash Runway** — traffic-light card. Burn rate averages across
-  **active days only** in the last 30 days, so a single big-spend
-  day yields a meaningful daily figure instead of a diluted
-  1700-day artefact.
-- **7-Day Spending** bar chart with peak day highlighted.
-- **Recent Activity** — last few transactions, grouped by date,
-  "See all" opens the full history.
+- **Payables / Receivables** and **Customer Deposits** tiles.
+- **Projects at Risk** — projects ≥ 80% of budget, over-budget first.
+- **Overdue Follow-Ups**, **Cash Runway** traffic-light card, and a
+  **7-Day Spending** bar chart.
+- **Recent Activity** — last few transactions; "See all" opens the
+  full history. A tap-to-sync cloud indicator sits in the app bar.
 
 ### Reports
 
-Grouped on the Reports tab so the ledgers come first (those are
-reached for daily), formal statements next, then aging, operations,
-and project analysis.
+Grouped so the ledgers come first, then formal statements, aging,
+operations and project analysis.
 
-**Ledgers** — every ledger screen shows a **trial-balance header**
-(opening / debits / credits / closing) plus a per-supplier or
-per-material breakdown on the project ledger.
-- Material Supplier Ledger
-- Labour Supplier Ledger (Wage Register)
-- Bank / Wallet Ledger
-- Project Ledger (with supplier and material breakdowns)
+**Ledgers** (each with a trial-balance header): Material Supplier
+Ledger, Labour Supplier Ledger, Bank / Wallet Ledger, Project Ledger
+(with supplier and material breakdowns).
 
-**Financial Statements**
-- Income Statement (P&L) — material-type and worker breakdowns,
-  Customer Deposits info row, Loss Provision line, at-risk banner.
-  CSV + PDF export.
-- Balance Sheet — Net Worth model (Assets − Liabilities). No
-  equity plug; cumulative recognized profit appears as a
-  cross-check memo. CSV + PDF export.
-- Cash Flow Statement — Operating / Financing broken down by
-  category (Receipts from customers, Supplier payments, Labour,
-  Counter purchases, Owner draws, internal transfers eliminated).
-  12-month bar chart.
-- Monthly P&L Trend — recognized income / costs / net profit per
-  month over the last 12 months, computed as cumulative deltas so
-  PoC recognition is properly bucketed mid-project. Line chart +
-  data table + CSV export.
+**Financial Statements**: Income Statement (P&L, CSV + PDF), Balance
+Sheet (Net Worth model, CSV + PDF), Cash Flow Statement, Monthly P&L
+Trend (cumulative-delta bucketing).
 
-**Aging** — FIFO open-balance matcher, 0-30 / 31-60 / 61-90 / 90+
-day buckets.
-- Aging — Payables (per supplier)
-- Aging — Receivables (under-funded projects + supplier overpayments)
+**Aging**: FIFO open-balance matcher, 0-30 / 31-60 / 61-90 / 90+ buckets
+— Payables (per supplier) and Receivables (under-funded projects +
+supplier overpayments).
 
-**Operations**
-- Supplier-wise Spending — horizontal-bar ranking, All Time / 90d /
-  30d filter.
+**Operations**: Supplier-wise Spending.
 
-**Project Analysis**
-- Budget vs Actual — summary card, budget-allocation pie,
-  material-breakdown pie, spending-over-time bar with Day / Week /
-  Month toggle, category table.
-- Project Profitability — every project ranked by net profit; bar
-  chart with green above zero, red below, bold zero line.
-- Material Price Trend — pick a material type, see your
-  rupee-per-unit prices over time across suppliers. Spot rising
-  prices early.
+**Project Analysis**: Budget vs Actual, Project Profitability, Material
+Price Trend.
 
 ### Local backup that survives uninstall
 
-- **Automatic** on cold boot every 6 hours, written silently.
-- **Atomic file copy** — `<dest>.tmp` first, then rename. A crash
-  during copy can never corrupt the destination.
-- **Retention** — last 30 timestamped snapshots, plus a
-  `solo_con_latest.db` pointer that's always current.
+- **Automatic** silent backup on cold boot every 6 hours.
+- **Atomic file copy** (`<dest>.tmp` then rename) — a crash mid-copy
+  can never corrupt the destination.
+- **Retention** — last 30 timestamped snapshots plus a
+  `solo_con_latest.db` pointer.
 - **Location** — Android external Documents folder, preserved on
-  uninstall on most OEMs (some Xiaomi / Samsung One UI 6+ / strict
-  Android 14+ wipe it; share off-device first in those cases).
-- **Manual**: Run backup now, Share latest backup (system share
-  sheet → WhatsApp / Gmail / Drive), Import backup with a SQLite
-  header check, Undo last import, Backup history browser, folder
-  write-access probe.
-- **Auto-restore** on reinstall: if the app finds itself empty and
-  `solo_con_latest.db` is in the backup folder, it silently copies
-  it back and opens to Home with all your data.
+  uninstall on most OEMs (some strict Android 14+ / One UI 6+ wipe it;
+  share off-device first).
+- **Manual**: Run backup now, Share latest backup, Import backup (with
+  SQLite header check), Undo last import, Backup history, folder probe.
+- **Auto-restore** on reinstall from `solo_con_latest.db`.
 
 ### Cloud sync (optional)
 
 Push every domain row to Supabase Postgres for cloud backup and
 multi-device use.
 
-- **Push** every local write within seconds of commit.
-- **Pull** on app start and on demand; uses an `updated_at`
-  cursor per table so only new rows come down.
-- **INSERT-only** conflict resolution: rows that already exist
-  locally are skipped, so a local write is never overwritten by
-  the server. The cloud is effectively a mirror of every device's
-  writes.
-- **Tenant id** — one UUID per operator, set on first sync and
-  copied to a second device by signing in with the same
-  credentials. Two unrelated installs never see each other's data.
-- **Build-time credentials** — `SUPABASE_URL` and
-  `SUPABASE_ANON_KEY` are baked into the APK via `--dart-define`;
-  no secrets are committed. Apply [supabase/migrations/0001_initial.sql](supabase/migrations/0001_initial.sql)
-  in the Supabase SQL Editor once before first sync.
+- **Push** every local write within seconds of commit; **pull** on
+  start and on demand, using an `updated_at` cursor per table.
+- **INSERT-only** conflict resolution — a local write is never
+  overwritten by the server. The cloud mirrors every device's writes.
+- **Tenant id** — one UUID per operator, generated on first sync.
+  Copy it to a second device (Settings → Cloud Sync → Tenant ID) so
+  both see the same data. ⚠️ A fresh install mints a *new* tenant, so
+  reinstalling without copying the id orphans earlier data under a
+  separate tenant.
+- **Sync diagnostics** (Settings → Cloud Sync) shows per-table
+  `here / cloud / all-tenants` row counts so you can see exactly what
+  is and isn't synced, and **Re-pull everything** safely re-downloads
+  every row for your tenant (never overwrites local data).
+- **Build-time credentials** — `SUPABASE_URL` and `SUPABASE_ANON_KEY`
+  are baked into the APK via `--dart-define`; no secrets are committed.
+  Apply every file in [supabase/migrations/](supabase/migrations/)
+  (`0001` → `0004`) in the Supabase SQL Editor, in order, before
+  syncing. The app never runs DDL against Supabase — migrations are
+  applied by hand.
 
 ### Audit & error reporting
 
-- **Change Log** — every soft-delete, restore, archive, unarchive
-  and edit recorded with timestamps, original/new JSON, the user
-  note and a stable per-install device id. CSV export.
-- **Recent Errors** — in-app log of every framework, async or
-  widget-build error caught during the session. Each entry has
-  source / timestamp / message / stack trace and a one-tap
+- **Activity Log (Change Log)** — records **new transactions and new
+  projects/suppliers/banks** as well as every edit, delete, restore and
+  archive, with timestamps, JSON payload, note and a stable per-install
+  device id. CSV export.
+- **Recent Errors** — in-app log of framework / async / widget-build
+  errors caught during the session, each with a one-tap
   "Copy full report" for forwarding via WhatsApp.
 
 ### Theme & UI
 
-- **Light, Dark, System** modes (Indigo accent, Navy AppBar).
-- Positive financial values in emerald, negative in rose — never
-  hard-coded; goes through `BalanceColors.signed()`.
-- **Pill navigation bar** at the bottom of Home — stadium-shaped
-  capsule, active destination expands to a filled pill with the
-  primary colour, inactive collapse to icon-only.
-- Charts render with compact money labels (Rs 1.5L, Rs 250k) and
-  auto-picked "nice" intervals.
+- **Light, Dark, System** modes (Indigo accent, neutral AppBar).
+- Positive financial values in emerald, negative in rose — always via
+  `BalanceColors.signed()`, never hard-coded.
+- **Pill navigation bar** at the bottom of Home.
+- **Zoom-safe**: the OS font/display scale is clamped so a phone set to
+  a large display size stays legible; the New Transaction / Manage /
+  Reports lists use compact single-line tiles.
+- Charts render with compact money labels (Rs 1.5L, Rs 250k).
 
 ### Settings
 
-- Appearance (light / dark / system).
-- Backup & Export — Run backup now, Share latest, Import, Undo,
-  Backup history, Backup folder probe.
-- Cloud Sync — connection status, last-sync timestamp, force pull,
-  reset tenant.
-- Audit — Change Log, Recent Errors.
-- Catalogs — Material Types (with UoM, coverage rate, waste factor,
-  lead time), Labour Types (with default daily rate).
+Appearance · Backup & Export · Cloud Sync (status, last-sync, Sync
+diagnostics, Re-pull everything, Sync now, Tenant ID) · Audit (Activity
+Log, Recent Errors) · Catalogs (Material Types, Labour Types).
 
-### 106 automated tests
+### 113 automated tests
 
-All passing under `flutter test`:
-
-- `invariants_test.dart` — engine invariants: double-entry balance,
-  reconciliation, soft delete, aging, audit, banks.
-- `business_logic_test.dart` — PoC revenue recognition,
-  labour-payment smart settle, budget-mismatch gate, burn-rate
-  active-days, supplier-payable balance.
-- `backup_blackbox_test.dart` — header validation, atomic copy,
-  backup round-trip, persistence, import rollback, corruption
-  handling.
-- `project_breakdown_test.dart` — per-supplier and per-material
-  spend roll-ups for the project ledger.
-- `user_journeys_blackbox_test.dart` — full flows from project
-  creation to archive.
-- `widget_test.dart` — account ID uniqueness, transaction kinds
-  carry label + blurb.
-
-All tests use `sqflite_common_ffi` to drive a real SQLite engine
-(no mocks); the production migration code runs on every test.
+All passing under `flutter test`, driving a real SQLite engine via
+`sqflite_common_ffi` (no mocks); production migrations run on every
+test. Suites: `invariants_test`, `business_logic_test`,
+`service_fee_whatsapp_test` (fixed-vs-% fee + WhatsApp number
+normalization), `backup_blackbox_test`, `project_breakdown_test`,
+`operational_memory_test`, `cloud_sync_test`, `user_journeys_blackbox_test`,
+`widget_test`.
 
 ---
 
 ## Documentation
 
-- **[USER_MANUAL.md](USER_MANUAL.md)** — for the operator. Tabs,
-  transactions, project lifecycle, the dashboard, reports, backup &
-  restore, cloud sync, FAQs, common scenarios.
-- **[TECHNICAL.md](TECHNICAL.md)** — for engineers. Tech stack,
-  architecture, data model, schema (v16), repositories, providers,
-  transaction kinds, reporting engine, backup mechanics, cloud-sync
-  design, error reporting, build & test instructions,
-  schema-migration history.
-- **[CLAUDE.md](CLAUDE.md)** — orientation notes for AI assistants
-  and future maintainers: load-bearing invariants, non-obvious
-  design decisions, things deliberately missing, where things live.
+- **[USER_MANUAL.md](USER_MANUAL.md)** — for the operator.
+- **[TECHNICAL.md](TECHNICAL.md)** — for engineers: stack, data model,
+  schema (v19), repositories, reporting engine, backup, cloud-sync
+  design, migration history.
+- **[CLAUDE.md](CLAUDE.md)** — orientation for AI assistants / future
+  maintainers: load-bearing invariants, non-obvious decisions, where
+  things live.
 
 ---
 
 ## Quick start
 
+Run from the repository root:
+
 ```bash
-cd bismillah_constructions
 flutter pub get
-flutter run                  # connected phone / emulator
-flutter run -d windows       # Windows desktop
-flutter test                 # 106 automated tests
+flutter run                          # connected Android phone / emulator
+flutter test                         # 113 automated tests
 flutter analyze --no-fatal-infos
 ```
 
@@ -285,27 +248,30 @@ flutter analyze --no-fatal-infos
 flutter build apk --release                   # universal APK
 flutter build apk --release --split-per-abi   # per-ABI APKs
 flutter build appbundle --release             # Play Store AAB
-flutter build windows --release               # Windows desktop
 ```
 
-### Release builds with cloud sync
+Release signing is configured via `android/key.properties` +
+`android/app/bismillah-release.jks` (both gitignored — keep them safe;
+losing the keystore means you can't update the published app).
 
-Pass Supabase credentials at build time so they're baked into the
-binary instead of committed to source:
+### Builds with cloud sync
 
-```bash
-flutter build apk --release \
-  --dart-define=SUPABASE_URL=https://<project>.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=<publishable-anon-key>
-```
-
-If your project lives inside a OneDrive-synced folder and the Android
-build fails with a permission error, redirect the build output:
+Supabase credentials live in `secrets/dart_defines.json` (gitignored;
+copy `secrets/dart_defines.example.json` and fill in your URL + anon
+key). Easiest path — the helper script injects them:
 
 ```powershell
-$env:BISMILLAH_BUILD_DIR = "C:\bismillah-build"
-flutter build apk --release
+powershell -ExecutionPolicy Bypass -File scripts\run_with_supabase.ps1 -Action build-apk
+# or:  -Action run   (to run on a connected device)
 ```
+
+Or pass them directly:
+
+```bash
+flutter build apk --release --dart-define-from-file=secrets/dart_defines.json
+```
+
+The signed APK lands at `build/app/outputs/flutter-apk/app-release.apk`.
 
 For full deployment details, see
 [TECHNICAL.md §13 Build & run](TECHNICAL.md#13-build--run).
@@ -315,11 +281,10 @@ For full deployment details, see
 ## Privacy
 
 - All data is stored locally on the device.
-- Local backups are written to user-visible storage on the same
-  device.
+- Local backups are written to user-visible storage on the same device.
 - Cloud sync is **opt-in** — only active when `SUPABASE_URL` and
-  `SUPABASE_ANON_KEY` are baked into the build. Without those, the
-  app runs fully offline and no data leaves the device.
+  `SUPABASE_ANON_KEY` are baked into the build. Without those the app
+  runs fully offline and no data leaves the device.
 - No analytics, no telemetry, no crash-reporting service.
 
 ---
