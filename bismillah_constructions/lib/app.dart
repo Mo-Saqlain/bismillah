@@ -29,6 +29,20 @@ class BismillahApp extends ConsumerWidget {
       themeMode: mode,
       theme: buildTheme(brightness: Brightness.light),
       darkTheme: buildTheme(brightness: Brightness.dark),
+      // Clamp the OS font-scale. A phone set to a large "Font size" /
+      // "Display size" pushes textScaler past 1.0, which blows fixed rows and
+      // cards out of shape (the "looks horrendous when zoomed in" report). We
+      // honour larger text up to 1.3×, past which the layout can't stay legible.
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(
+            textScaler: mq.textScaler
+                .clamp(minScaleFactor: 1.0, maxScaleFactor: 1.3),
+          ),
+          child: child!,
+        );
+      },
       home: const RestoreGateway(),
     );
   }

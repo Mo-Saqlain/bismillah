@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants.dart';
 import '../../core/formatters.dart';
+import '../../core/whatsapp.dart';
 import '../../data/models/labour_type_def.dart';
 import '../../data/models/party.dart';
 import '../../data/models/project.dart';
@@ -256,12 +257,15 @@ class _TransactionFormScreenState
       final svc = await ref.read(syncServiceFutureProvider.future);
       // ignore: unawaited_futures
       svc.syncNow();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${_k.label} saved')),
-        );
-        Navigator.pop(context);
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${_k.label} saved')),
+      );
+      // Offer to WhatsApp a confirmation to the counterparty (supplier for
+      // material/labour/supplier-pay, the project's client for receipts).
+      // Silently skipped when that party has no number on file.
+      await _maybePromptWhatsApp(amount: amount, description: desc);
+      if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -271,6 +275,106 @@ class _TransactionFormScreenState
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  /// After a save, if the transaction's counterparty has a WhatsApp number,
+  /// offer to open WhatsApp with a pre-filled confirmation. Counterparty =
+  /// the supplier for material/labour/supplier-pay, or the project's client
+  /// for a receipt. Transfers, personal draws and counter purchases have no
+  /// counterparty, so nothing is prompted. Missing number → skipped.
+  Future<void> _maybePromptWhatsApp({
+    required double amount,
+    String? description,
+  }) async {
+    final entityRepo = await ref.read(entityRepoProvider.future);
+
+    final supplierFacing = (_isMaterialBuy && !_counterPurchase) ||
+        _k == TxnKind.labourPayment ||
+        _k == TxnKind.labourCredit ||
+        _k == TxnKind.supplierPay;
+
+    String? number;
+    String? recipientName;
+    if (supplierFacing && _supplierId != null) {
+      final s = await entityRepo.supplier(_supplierId!);
+      number = s?.phone;
+      recipientName = s?.name;
+    } else if (_k == TxnKind.receiveFromProject && _projectId != null) {
+      final p = await entityRepo.project(_projectId!);
+      number = p?.whatsapp;
+      recipientName = p?.name;
+    }
+    if (number == null || number.trim().isEmpty) return; // skip if missing
+
+    String? projectName;
+    if (_projectId != null) {
+      projectName = (await entityRepo.project(_projectId!))?.name;
+    }
+    final msg = _whatsAppMessage(
+        amount: amount, description: description, projectName: projectName);
+
+    if (!mounted) return;
+    final send = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.chat, color: Color(0xFF25D366)),
+        title: Text('Send WhatsApp to ${recipientName ?? 'contact'}?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('To: $number'),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(msg),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Opens WhatsApp with this message pre-filled — you tap send there.',
+              style: Theme.of(ctx).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Skip')),
+          FilledButton.icon(
+              onPressed: () => Navigator.pop(ctx, true),
+              icon: const Icon(Icons.send),
+              label: const Text('Send')),
+        ],
+      ),
+    );
+    if (send == true) {
+      final ok = await launchWhatsApp(number: number, message: msg);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Could not open WhatsApp on this device.')));
+      }
+    }
+  }
+
+  String _whatsAppMessage({
+    required double amount,
+    String? description,
+    String? projectName,
+  }) {
+    final lines = <String>[
+      'Bismillah Constructions',
+      '',
+      '${_k.label}: ${fmtMoney(amount)}',
+      if (projectName != null) 'Project: $projectName',
+      'Date: ${fmtDate(DateTime.now())}',
+      if (description != null && description.isNotEmpty) description,
+    ];
+    return lines.join('\n');
   }
 
   @override

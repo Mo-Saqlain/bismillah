@@ -90,6 +90,22 @@ extension ProjectModelX on ProjectModel {
           orElse: () => ProjectModel.withMaterial);
 }
 
+/// How a Labour-Rate project's service fee (the contractor's earnings) is
+/// calculated: a percentage of everything spent, or a flat rupee amount
+/// agreed up front regardless of spend.
+enum ServiceFeeType { percent, fixed }
+
+extension ServiceFeeTypeX on ServiceFeeType {
+  String get label => switch (this) {
+        ServiceFeeType.percent => 'Percentage of spend',
+        ServiceFeeType.fixed => 'Fixed amount',
+      };
+  String get db => name;
+  static ServiceFeeType fromDb(String? s) =>
+      ServiceFeeType.values.firstWhere((v) => v.name == s,
+          orElse: () => ServiceFeeType.percent);
+}
+
 enum ProjectStatus { active, closed }
 
 extension ProjectStatusX on ProjectStatus {
@@ -208,10 +224,11 @@ extension TxnKindX on TxnKind {
 }
 
 /// Action recorded in the change log.
-enum ChangeAction { delete, restore, archive, unarchive, edit }
+enum ChangeAction { create, delete, restore, archive, unarchive, edit }
 
 extension ChangeActionX on ChangeAction {
   String get label => switch (this) {
+        ChangeAction.create => 'Created',
         ChangeAction.delete => 'Deleted',
         ChangeAction.restore => 'Restored',
         ChangeAction.archive => 'Archived',

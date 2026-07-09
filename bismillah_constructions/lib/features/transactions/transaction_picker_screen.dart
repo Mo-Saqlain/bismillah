@@ -48,7 +48,8 @@ class TransactionPickerScreen extends StatelessWidget {
               ),
               title: Text(kind.label,
                   style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text(kind.blurb),
+              // Descriptive blurb dropped so the list stays compact under
+              // large font/display scaling.
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,

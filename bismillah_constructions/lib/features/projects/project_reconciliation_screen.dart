@@ -53,7 +53,9 @@ class _ProjectReconciliationScreenState
     if (widget.project.model == ProjectModel.labourRate) {
       close = await repo.labourRateCloseSummary(
         widget.project.id,
-        widget.project.serviceFeePercent ?? 0,
+        feeType: widget.project.serviceFeeType,
+        feePercent: widget.project.serviceFeePercent ?? 0,
+        feeAmount: widget.project.serviceFeeAmount ?? 0,
       );
     }
     if (!mounted) return;
@@ -80,8 +82,9 @@ class _ProjectReconciliationScreenState
       await ledgerRepo.postProjectServiceFee(
         projectId: widget.project.id,
         amount: close.serviceFee,
-        description:
-            'Service fee on close (${close.feePercent.toStringAsFixed(2)} %)',
+        description: close.feeType == ServiceFeeType.fixed
+            ? 'Service fee on close (fixed)'
+            : 'Service fee on close (${close.feePercent.toStringAsFixed(2)} %)',
       );
       bumpLedger(ref);
       await _load();
@@ -444,11 +447,16 @@ class _LabourRateCloseCard extends StatelessWidget {
         children: [
           _Row(label: 'Customer Paid (Inflow)', value: close.customerPaid),
           _Row(label: 'Spent on Customer\'s Behalf', value: close.totalSpent),
+          if (close.feeType == ServiceFeeType.percent)
+            _Row(
+                label: 'Service Fee % configured',
+                value: close.feePercent,
+                suffix: '%'),
           _Row(
-              label: 'Service Fee % configured',
-              value: close.feePercent,
-              suffix: '%'),
-          _Row(label: 'Service Fee Amount', value: close.serviceFee),
+              label: close.feeType == ServiceFeeType.fixed
+                  ? 'Service Fee (fixed)'
+                  : 'Service Fee Amount',
+              value: close.serviceFee),
           const Divider(),
           Container(
             padding: const EdgeInsets.all(12),

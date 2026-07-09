@@ -36,6 +36,33 @@ class SyncStatus {
   static const initial = SyncStatus(state: SyncState.idle, pending: 0);
 }
 
+/// Per-table row counts for the sync diagnostics screen.
+///
+///   * [local]        — rows in this device's SQLite DB.
+///   * [remoteTenant] — rows on Supabase tagged with THIS device's tenant
+///                      id (null if the count couldn't be fetched).
+///   * [remoteAll]    — rows on Supabase for every tenant (open RLS lets us
+///                      see them; null if it couldn't be fetched).
+///
+/// Reading the three together explains "missing" data:
+///   * `remoteTenant == 0` but `remoteAll > 0` → server data is under a
+///     DIFFERENT tenant id (fix by matching the shared Tenant ID).
+///   * `remoteTenant > local` → this device never pulled some rows; a
+///     "re-pull everything" fixes it.
+///   * `local >= remoteTenant` → nothing missing from the cloud.
+class SyncTableDiag {
+  final String table;
+  final int local;
+  final int? remoteTenant;
+  final int? remoteAll;
+  const SyncTableDiag({
+    required this.table,
+    required this.local,
+    required this.remoteTenant,
+    required this.remoteAll,
+  });
+}
+
 /// Tables that mirror to Supabase. Order matters for **pull** — rows are
 /// inserted in this order so foreign keys resolve (projects before
 /// material_inventory, suppliers before journal_entries, etc.).
@@ -191,6 +218,51 @@ class SyncService {
     } finally {
       _syncing = false;
     }
+  }
+
+  /// Recovery action: clear the pull cursors, then run a full forced sync so
+  /// every server row for this tenant is re-downloaded. Pulls are INSERT OR
+  /// IGNORE, so local rows are never overwritten — this only back-fills rows
+  /// the device never pulled. Bypasses the cloud-sync toggle.
+  Future<void> fullRepull() async {
+    await _entities.resetPullCursors();
+    await syncNow(force: true);
+  }
+
+  /// One-shot per-table census of local vs remote row counts, for the
+  /// Settings → Sync diagnostics screen. Purely read-only. Remote counts are
+  /// left null on a network/query error so the UI shows "—" for that table
+  /// rather than failing the whole report.
+  Future<List<SyncTableDiag>> diagnostics() async {
+    final out = <SyncTableDiag>[];
+    if (!SupabaseConfig.configured) return out;
+    final tenantId = await _entities.ensureTenantId();
+    final client = Supabase.instance.client;
+    final db = _ledger.db;
+
+    for (final table in _kSyncTables) {
+      final localRows =
+          await db.rawQuery('SELECT COUNT(*) AS c FROM $table');
+      final local = ((localRows.first['c'] as num?) ?? 0).toInt();
+
+      int? remoteTenant;
+      int? remoteAll;
+      try {
+        final tenantRes =
+            await client.from(table).select('id').eq('tenant_id', tenantId);
+        remoteTenant = (tenantRes as List).length;
+        final allRes = await client.from(table).select('id');
+        remoteAll = (allRes as List).length;
+      } catch (_) {/* leave remote counts null — table row shows a dash */}
+
+      out.add(SyncTableDiag(
+        table: table,
+        local: local,
+        remoteTenant: remoteTenant,
+        remoteAll: remoteAll,
+      ));
+    }
+    return out;
   }
 
   // ── Push ──────────────────────────────────────────────────────────────

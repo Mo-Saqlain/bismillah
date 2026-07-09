@@ -46,7 +46,10 @@ class EntityRepository {
     String? siteAddress,
     double? budget,
     String? projectManager,
+    String? whatsapp,
     double? serviceFeePercent,
+    ServiceFeeType serviceFeeType = ServiceFeeType.percent,
+    double? serviceFeeAmount,
   }) async {
     final p = Project(
       id: _uuid.v4(),
@@ -61,9 +64,17 @@ class EntityRepository {
       budget: budget,
       projectManager:
           projectManager?.trim().isEmpty == true ? null : projectManager?.trim(),
+      whatsapp: whatsapp?.trim().isEmpty == true ? null : whatsapp?.trim(),
       serviceFeePercent: serviceFeePercent,
+      serviceFeeType: serviceFeeType,
+      serviceFeeAmount: serviceFeeAmount,
     );
     await _db.insert('projects', p.toMap());
+    await logChange(
+        entityType: 'project',
+        entityId: p.id,
+        action: ChangeAction.create,
+        newData: p.toMap());
     return p;
   }
 
@@ -74,7 +85,10 @@ class EntityRepository {
     String? siteAddress,
     double? budget,
     String? projectManager,
+    String? whatsapp,
     double? serviceFeePercent,
+    ServiceFeeType? serviceFeeType,
+    double? serviceFeeAmount,
     int? completionPercent,
   }) async {
     final updates = <String, Object?>{};
@@ -90,8 +104,17 @@ class EntityRepository {
       updates['project_manager'] =
           projectManager.trim().isEmpty ? null : projectManager.trim();
     }
+    if (whatsapp != null) {
+      updates['whatsapp'] = whatsapp.trim().isEmpty ? null : whatsapp.trim();
+    }
     if (serviceFeePercent != null) {
       updates['service_fee_percent'] = serviceFeePercent;
+    }
+    if (serviceFeeType != null) {
+      updates['service_fee_type'] = serviceFeeType.db;
+    }
+    if (serviceFeeAmount != null) {
+      updates['service_fee_amount'] = serviceFeeAmount;
     }
     if (completionPercent != null) {
       // Clamp to 0..100; callers can feed a slider's raw value without
@@ -343,6 +366,11 @@ class EntityRepository {
           bankDetails?.trim().isEmpty == true ? null : bankDetails?.trim(),
     );
     await _db.insert('suppliers', p.toSupplierMap());
+    await logChange(
+        entityType: 'supplier',
+        entityId: p.id,
+        action: ChangeAction.create,
+        newData: p.toSupplierMap());
     return p;
   }
 
@@ -507,6 +535,11 @@ class EntityRepository {
       createdAt: DateTime.now().toUtc(),
     );
     await _db.insert('banks', b.toMap());
+    await logChange(
+        entityType: 'bank',
+        entityId: b.id,
+        action: ChangeAction.create,
+        newData: b.toMap());
     return b;
   }
 
@@ -1203,6 +1236,15 @@ class EntityRepository {
 
   Future<void> setPullCursor(String table, DateTime at) =>
       setSetting(SettingsKeys.pullCursor(table), at.toUtc().toIso8601String());
+
+  /// Clears every stored pull cursor so the next sync re-downloads all
+  /// server rows for the current tenant from the beginning of time. Powers
+  /// the "re-pull everything" recovery action. Pulls are INSERT OR IGNORE,
+  /// so this can never overwrite a local row — it only back-fills rows this
+  /// device never pulled. Safe to call any time.
+  Future<void> resetPullCursors() async {
+    await _db.delete('app_settings', where: "key LIKE 'cloud_pull_at:%'");
+  }
 
   // ---- Settings ----
 

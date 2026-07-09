@@ -55,8 +55,8 @@ class ChangeLogScreen extends ConsumerWidget {
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                    'Nothing changed yet. Edits, deletions and archives '
-                    'will show up here.'),
+                    'Nothing here yet. New transactions, edits, deletions '
+                    'and archives will show up here.'),
               ),
             );
           }
@@ -359,6 +359,7 @@ class _Summary {
 _Summary _humanize(ChangeLog c, _LogBundle b) {
   final action = c.action;
   final actionWord = switch (action) {
+    ChangeAction.create => 'Added',
     ChangeAction.delete => 'Deleted',
     ChangeAction.restore => 'Restored',
     ChangeAction.archive => 'Archived',
@@ -395,7 +396,9 @@ _Summary _humanize(ChangeLog c, _LogBundle b) {
         subtitle: '',
       );
     case 'journal_entry':
-      final txn = _decodeTxn(c.originalData);
+      // Creation stores the payload in new_data; edits/deletes store the
+      // prior state in original_data — decode whichever is present.
+      final txn = _decodeTxn(c.originalData ?? c.newData);
       return _Summary(
         icon: _iconFor(action, fallback: Icons.receipt_long),
         tint: _tintFor(action),
@@ -417,6 +420,7 @@ String _short(String id) => id.length <= 8 ? id : id.substring(0, 8);
 
 IconData _iconFor(ChangeAction action, {required IconData fallback}) {
   return switch (action) {
+    ChangeAction.create => Icons.add_circle_outline,
     ChangeAction.delete => Icons.delete_outline,
     ChangeAction.restore => Icons.restore,
     ChangeAction.archive => Icons.archive_outlined,
@@ -426,9 +430,10 @@ IconData _iconFor(ChangeAction action, {required IconData fallback}) {
 }
 
 Color? _tintFor(ChangeAction action) {
-  // Returns null = neutral. Destructive actions are red-tinted; restorative
-  // ones are blue (per the app's blue palette convention).
+  // Returns null = neutral. Creations are green (new), destructive actions
+  // red, restorative ones blue (per the app's blue palette convention).
   return switch (action) {
+    ChangeAction.create => Colors.green.shade600,
     ChangeAction.delete => Colors.red.shade400,
     ChangeAction.archive => Colors.orange.shade600,
     ChangeAction.restore || ChangeAction.unarchive => Colors.blue.shade600,

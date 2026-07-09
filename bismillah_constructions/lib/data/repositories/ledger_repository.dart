@@ -86,36 +86,48 @@ class LedgerRepository {
     }
     final txnId = _uuid.v4();
     final now = DateTime.now().toUtc();
+    final dev = await _deviceId();
 
     await _db.transaction((txn) async {
+      final debitRow = JournalEntry(
+        id: _uuid.v4(),
+        transactionId: txnId,
+        accountId: debitAccount.id,
+        projectId: projectId,
+        supplierId: supplierId,
+        debit: amount,
+        credit: 0,
+        description: description,
+        createdAt: now,
+      ).toMap();
+      final creditRow = JournalEntry(
+        id: _uuid.v4(),
+        transactionId: txnId,
+        accountId: creditAccount.id,
+        projectId: projectId,
+        supplierId: supplierId,
+        debit: 0,
+        credit: amount,
+        description: description,
+        createdAt: now,
+      ).toMap();
+      await txn.insert('journal_entries', debitRow);
+      await txn.insert('journal_entries', creditRow);
+      // Audit the creation so the Activity Log reflects normal use, not just
+      // edits/deletes. Every ledger write funnels through _post, so this is
+      // the single place that captures "a transaction was added". Payload
+      // lives in new_data (the row's initial state).
       await txn.insert(
-        'journal_entries',
-        JournalEntry(
-          id: _uuid.v4(),
-          transactionId: txnId,
-          accountId: debitAccount.id,
-          projectId: projectId,
-          supplierId: supplierId,
-          debit: amount,
-          credit: 0,
-          description: description,
-          createdAt: now,
-        ).toMap(),
-      );
-      await txn.insert(
-        'journal_entries',
-        JournalEntry(
-          id: _uuid.v4(),
-          transactionId: txnId,
-          accountId: creditAccount.id,
-          projectId: projectId,
-          supplierId: supplierId,
-          debit: 0,
-          credit: amount,
-          description: description,
-          createdAt: now,
-        ).toMap(),
-      );
+          'change_log',
+          ChangeLog(
+            id: _uuid.v4(),
+            entityType: 'journal_entry',
+            entityId: txnId,
+            action: ChangeAction.create,
+            newData: jsonEncode([debitRow, creditRow]),
+            deviceId: dev,
+            timestamp: now,
+          ).toMap());
     });
 
     _fireCommit();
@@ -1457,17 +1469,26 @@ class LedgerRepository {
   ///   * `netToSettle`   — `(customerPaid − serviceFee) − totalSpent`.
   ///       positive → refund customer the surplus
   ///       negative → customer owes us the deficit (already includes fee)
+  /// The service fee is either a percentage of spend or a flat amount,
+  /// decided by [feeType] — see [Project.serviceFeeOn], which this mirrors.
   Future<LabourRateClose> labourRateCloseSummary(
-      String projectId, double feePercent) async {
+    String projectId, {
+    ServiceFeeType feeType = ServiceFeeType.percent,
+    double feePercent = 0,
+    double feeAmount = 0,
+  }) async {
     final customerPaid =
         await sumCredits(Accounts.projectRevenue.id, projectId: projectId);
     final totalSpent = await projectOutflow(projectId);
-    final serviceFee = totalSpent * feePercent / 100;
+    final serviceFee = feeType == ServiceFeeType.fixed
+        ? feeAmount
+        : totalSpent * feePercent / 100;
     final customerFundsAvail = customerPaid - serviceFee;
     final netToSettle = customerFundsAvail - totalSpent;
     return LabourRateClose(
       customerPaid: customerPaid,
       totalSpent: totalSpent,
+      feeType: feeType,
       feePercent: feePercent,
       serviceFee: serviceFee,
       netToSettle: netToSettle,

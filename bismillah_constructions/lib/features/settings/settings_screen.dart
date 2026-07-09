@@ -390,7 +390,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               leading: const Icon(Icons.fact_check),
               title: const Text('Change Log'),
               subtitle: const Text(
-                  'View all edits/deletes/archives. Export to CSV.'),
+                  'New entries, edits, deletes and archives. Export to CSV.'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,
@@ -512,6 +512,8 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
   String? _tenantId;
   bool _busy = false;
   bool _checking = false;
+  bool _repulling = false;
+  bool _diagBusy = false;
   SupabaseHealth? _health;
 
   @override
@@ -567,6 +569,46 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
     } finally {
       if (mounted) setState(() => _checking = false);
     }
+  }
+
+  Future<void> _fullRepull() async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _repulling = true);
+    try {
+      final svc = await ref.read(syncServiceFutureProvider.future);
+      await svc.fullRepull();
+      await _load();
+      final s = svc.currentStatus;
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text(switch (s.state) {
+          SyncState.idle => 'Re-pulled everything from the cloud ✓',
+          SyncState.offline => 'Offline — will re-pull when back online',
+          SyncState.error =>
+            'Re-pull failed: ${s.message ?? 'unknown error'}',
+          _ => 'Re-pull finished',
+        }),
+        duration: const Duration(seconds: 4),
+      ));
+    } finally {
+      if (mounted) setState(() => _repulling = false);
+    }
+  }
+
+  Future<void> _showDiagnostics() async {
+    setState(() => _diagBusy = true);
+    List<SyncTableDiag> rows;
+    try {
+      final svc = await ref.read(syncServiceFutureProvider.future);
+      rows = await svc.diagnostics();
+    } finally {
+      if (mounted) setState(() => _diagBusy = false);
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _SyncDiagnosticsDialog(rows: rows),
+    );
   }
 
   Future<void> _editTenantId() async {
@@ -736,6 +778,35 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
             onTap: _busy ? null : _syncNow,
           ),
           ListTile(
+            leading: const Icon(Icons.analytics_outlined),
+            title: const Text('Sync diagnostics'),
+            subtitle: const Text(
+                'Compare row counts on this phone vs the cloud, per table — '
+                'shows exactly what is and isn\'t synced.'),
+            trailing: _diagBusy
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.chevron_right),
+            onTap: _diagBusy ? null : _showDiagnostics,
+          ),
+          ListTile(
+            leading: const Icon(Icons.cloud_download_outlined),
+            title: const Text('Re-pull everything from cloud'),
+            subtitle: const Text(
+                'Re-download every row for this tenant. Safe — never '
+                'overwrites data already on this phone. Use when the cloud '
+                'has projects/transactions this device is missing.'),
+            trailing: _repulling
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.chevron_right),
+            onTap: _repulling ? null : _fullRepull,
+          ),
+          ListTile(
             leading: const Icon(Icons.fingerprint),
             title: const Text('Tenant ID'),
             subtitle: Text(
@@ -765,6 +836,90 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Read-only census of local vs cloud row counts, per synced table. Turns
+/// "sync feels wrong" into concrete numbers and a plain-language diagnosis.
+class _SyncDiagnosticsDialog extends StatelessWidget {
+  const _SyncDiagnosticsDialog({required this.rows});
+  final List<SyncTableDiag> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tenantMismatch = rows
+        .any((r) => (r.remoteTenant ?? 0) == 0 && (r.remoteAll ?? 0) > 0);
+    final missingLocally = rows
+        .any((r) => r.remoteTenant != null && r.remoteTenant! > r.local);
+
+    Widget cell(String text,
+            {int flex = 2,
+            bool header = false,
+            TextAlign align = TextAlign.end}) =>
+        Expanded(
+          flex: flex,
+          child: Text(text,
+              textAlign: align,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: header ? FontWeight.w700 : FontWeight.w400)),
+        );
+
+    return AlertDialog(
+      title: const Text('Sync diagnostics'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              cell('Table', flex: 4, header: true, align: TextAlign.start),
+              cell('Here', header: true),
+              cell('Cloud', header: true),
+              cell('All', header: true),
+            ]),
+            const Divider(),
+            for (final r in rows)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(children: [
+                  cell(r.table, flex: 4, align: TextAlign.start),
+                  cell('${r.local}'),
+                  cell(r.remoteTenant?.toString() ?? '—'),
+                  cell(r.remoteAll?.toString() ?? '—'),
+                ]),
+              ),
+            const SizedBox(height: 14),
+            Text(
+              tenantMismatch
+                  ? 'Your Supabase project holds rows under a DIFFERENT tenant '
+                      'id ("Cloud" is 0 while "All" is not). Set the shared '
+                      'Tenant ID below to match your other device, then re-pull.'
+                  : missingLocally
+                      ? 'The cloud has rows this phone is missing ("Cloud" > '
+                          '"Here"). Tap "Re-pull everything from cloud".'
+                      : 'This phone already has everything the cloud holds for '
+                          'your tenant. Anything not showing in a list is '
+                          'archived or deleted, not lost.',
+              style: TextStyle(fontSize: 12.5, color: scheme.onSurface),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Here = on this phone · Cloud = your tenant on Supabase · '
+              'All = every tenant in the project.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
     );
   }
 }

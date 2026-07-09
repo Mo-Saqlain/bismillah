@@ -106,10 +106,17 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                       if (p.budget != null)
                         Text('Budget: ${fmtMoney(p.budget!)}',
                             style: const TextStyle(fontSize: 12)),
-                      if (p.serviceFeePercent != null &&
-                          p.model == ProjectModel.labourRate)
+                      if (p.model == ProjectModel.labourRate &&
+                          (p.serviceFeeType == ServiceFeeType.fixed
+                              ? p.serviceFeeAmount != null
+                              : p.serviceFeePercent != null))
                         Text(
-                            'Service Fee: ${p.serviceFeePercent!.toStringAsFixed(2)}%',
+                            p.serviceFeeType == ServiceFeeType.fixed
+                                ? 'Service Fee: ${fmtMoney(p.serviceFeeAmount ?? 0)} (fixed)'
+                                : 'Service Fee: ${p.serviceFeePercent!.toStringAsFixed(2)}%',
+                            style: const TextStyle(fontSize: 12)),
+                      if (p.whatsapp != null && p.whatsapp!.isNotEmpty)
+                        Text('WhatsApp: ${p.whatsapp}',
                             style: const TextStyle(fontSize: 12)),
                     ],
                   ),
@@ -217,8 +224,11 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
   final siteCtrl = TextEditingController();
   final budgetCtrl = TextEditingController();
   final managerCtrl = TextEditingController();
+  final whatsappCtrl = TextEditingController();
   final serviceFeeCtrl = TextEditingController();
+  final feeAmountCtrl = TextEditingController();
   ProjectModel model = ProjectModel.withMaterial;
+  ServiceFeeType feeType = ServiceFeeType.percent;
 
   showModalBottomSheet<void>(
     context: context,
@@ -303,22 +313,70 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
                       labelText: 'Project manager (optional)'),
                   textCapitalization: TextCapitalization.words,
                 ),
-                if (model == ProjectModel.labourRate) ...[
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: serviceFeeCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Service Fee % (Labour-Rate model)',
-                      suffixText: '%',
-                      helperText:
-                          'Profit = % of total project spend (interim & final)',
-                    ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                    ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: whatsappCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Client WhatsApp number (optional)',
+                    helperText:
+                        'Used to send a confirmation on money received from this project',
+                    prefixIcon: Icon(Icons.chat_outlined),
                   ),
+                  keyboardType: TextInputType.phone,
+                ),
+                if (model == ProjectModel.labourRate) ...[
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Service Fee (Labour-Rate)',
+                        style: Theme.of(ctx).textTheme.labelLarge),
+                  ),
+                  const SizedBox(height: 6),
+                  SegmentedButton<ServiceFeeType>(
+                    segments: const [
+                      ButtonSegment(
+                          value: ServiceFeeType.percent,
+                          label: Text('Percentage'),
+                          icon: Icon(Icons.percent)),
+                      ButtonSegment(
+                          value: ServiceFeeType.fixed,
+                          label: Text('Fixed'),
+                          icon: Icon(Icons.payments_outlined)),
+                    ],
+                    selected: {feeType},
+                    onSelectionChanged: (s) =>
+                        setSheetState(() => feeType = s.first),
+                  ),
+                  const SizedBox(height: 12),
+                  if (feeType == ServiceFeeType.percent)
+                    TextField(
+                      controller: serviceFeeCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Service Fee %',
+                        suffixText: '%',
+                        helperText: 'Profit = % of total project spend',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                    )
+                  else
+                    TextField(
+                      controller: feeAmountCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Fixed Service Fee',
+                        prefixText: 'Rs ',
+                        helperText:
+                            'Flat fee earned regardless of how much is spent',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                    ),
                 ],
                 const SizedBox(height: 20),
                 FilledButton(
@@ -352,8 +410,17 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
                       projectManager: managerCtrl.text.trim().isEmpty
                           ? null
                           : managerCtrl.text.trim(),
-                      serviceFeePercent: model == ProjectModel.labourRate
+                      whatsapp: whatsappCtrl.text.trim().isEmpty
+                          ? null
+                          : whatsappCtrl.text.trim(),
+                      serviceFeePercent: model == ProjectModel.labourRate &&
+                              feeType == ServiceFeeType.percent
                           ? double.tryParse(serviceFeeCtrl.text)
+                          : null,
+                      serviceFeeType: feeType,
+                      serviceFeeAmount: model == ProjectModel.labourRate &&
+                              feeType == ServiceFeeType.fixed
+                          ? double.tryParse(feeAmountCtrl.text)
                           : null,
                     );
                     bumpLedger(ref);
@@ -382,8 +449,12 @@ void _showProjectEditForm(
       TextEditingController(text: existing.budget?.toString() ?? '');
   final managerCtrl =
       TextEditingController(text: existing.projectManager ?? '');
+  final whatsappCtrl = TextEditingController(text: existing.whatsapp ?? '');
   final serviceFeeCtrl = TextEditingController(
       text: existing.serviceFeePercent?.toString() ?? '');
+  final feeAmountCtrl = TextEditingController(
+      text: existing.serviceFeeAmount?.toString() ?? '');
+  ServiceFeeType feeType = existing.serviceFeeType;
 
   showModalBottomSheet<void>(
     context: context,
@@ -395,7 +466,8 @@ void _showProjectEditForm(
         right: 16,
         top: 16,
       ),
-      child: SingleChildScrollView(
+      child: StatefulBuilder(
+        builder: (ctx, setSheetState) => SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -454,20 +526,69 @@ void _showProjectEditForm(
                   labelText: 'Project manager (optional)'),
               textCapitalization: TextCapitalization.words,
             ),
-            if (existing.model == ProjectModel.labourRate) ...[
-              const SizedBox(height: 12),
-              TextField(
-                controller: serviceFeeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Service Fee % (Labour-Rate model)',
-                  suffixText: '%',
-                ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: whatsappCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Client WhatsApp number (optional)',
+                helperText:
+                    'Used to send a confirmation on money received from this project',
+                prefixIcon: Icon(Icons.chat_outlined),
               ),
+              keyboardType: TextInputType.phone,
+            ),
+            if (existing.model == ProjectModel.labourRate) ...[
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Service Fee (Labour-Rate)',
+                    style: Theme.of(sheetCtx).textTheme.labelLarge),
+              ),
+              const SizedBox(height: 6),
+              SegmentedButton<ServiceFeeType>(
+                segments: const [
+                  ButtonSegment(
+                      value: ServiceFeeType.percent,
+                      label: Text('Percentage'),
+                      icon: Icon(Icons.percent)),
+                  ButtonSegment(
+                      value: ServiceFeeType.fixed,
+                      label: Text('Fixed'),
+                      icon: Icon(Icons.payments_outlined)),
+                ],
+                selected: {feeType},
+                onSelectionChanged: (s) =>
+                    setSheetState(() => feeType = s.first),
+              ),
+              const SizedBox(height: 12),
+              if (feeType == ServiceFeeType.percent)
+                TextField(
+                  controller: serviceFeeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Service Fee %',
+                    suffixText: '%',
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                  ],
+                )
+              else
+                TextField(
+                  controller: feeAmountCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Fixed Service Fee',
+                    prefixText: 'Rs ',
+                    helperText:
+                        'Flat fee earned regardless of how much is spent',
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                  ],
+                ),
             ],
             const SizedBox(height: 20),
             FilledButton(
@@ -492,8 +613,17 @@ void _showProjectEditForm(
                   siteAddress: siteCtrl.text,
                   budget: budget,
                   projectManager: managerCtrl.text,
-                  serviceFeePercent: existing.model == ProjectModel.labourRate
+                  whatsapp: whatsappCtrl.text,
+                  serviceFeePercent: existing.model == ProjectModel.labourRate &&
+                          feeType == ServiceFeeType.percent
                       ? double.tryParse(serviceFeeCtrl.text)
+                      : null,
+                  serviceFeeType: existing.model == ProjectModel.labourRate
+                      ? feeType
+                      : null,
+                  serviceFeeAmount: existing.model == ProjectModel.labourRate &&
+                          feeType == ServiceFeeType.fixed
+                      ? double.tryParse(feeAmountCtrl.text)
                       : null,
                 );
                 bumpLedger(ref);
@@ -504,6 +634,7 @@ void _showProjectEditForm(
             const SizedBox(height: 12),
           ],
         ),
+      ),
       ),
     ),
   );

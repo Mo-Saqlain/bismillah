@@ -13,7 +13,7 @@ class LocalDb {
   /// through [open], which routes through [_onCreate] / [_onUpgrade] like
   /// normal.
   @visibleForTesting
-  Future<void> applySchemaForTests(Database db) => _onCreate(db, 17);
+  Future<void> applySchemaForTests(Database db) => _onCreate(db, 19);
 
   Database? _db;
   String? _dbPath;
@@ -49,7 +49,7 @@ class LocalDb {
     _db = await factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 17,
+        version: 19,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
         },
@@ -110,6 +110,13 @@ class LocalDb {
         budget REAL,
         project_manager TEXT,
         service_fee_percent REAL,
+        -- v18: Labour-Rate service fee can be a percentage of spend OR a
+        -- flat rupee amount. type is 'percent' | 'fixed'; amount holds the
+        -- flat fee when type = 'fixed'.
+        service_fee_type TEXT NOT NULL DEFAULT 'percent',
+        service_fee_amount REAL,
+        -- v19: client WhatsApp number for the post-transaction send prompt.
+        whatsapp TEXT,
         -- v14: manual completion estimate (0..100) entered by the owner.
         -- Intentionally not derived from BOQ / quantities — this is a
         -- gut-feel number that informs dashboards and forecasting.
@@ -834,6 +841,31 @@ class LocalDb {
           WHERE rowid = NEW.rowid;
         END
       ''');
+    }
+
+    if (oldVersion < 18) {
+      // v18: Labour-Rate service fee can be a flat rupee amount, not only a
+      // percentage of spend. Two nullable-friendly columns on `projects`;
+      // existing rows default to 'percent' so their behaviour is unchanged.
+      // (Adding a NOT NULL column with a constant DEFAULT is allowed by
+      // SQLite's ALTER TABLE ADD COLUMN.)
+      for (final ddl in const [
+        "ALTER TABLE projects ADD COLUMN service_fee_type TEXT NOT NULL DEFAULT 'percent'",
+        'ALTER TABLE projects ADD COLUMN service_fee_amount REAL',
+      ]) {
+        try {
+          await db.execute(ddl);
+        } catch (_) {/* column may already exist on partial upgrades */}
+      }
+    }
+
+    if (oldVersion < 19) {
+      // v19: client WhatsApp number on projects (post-transaction send
+      // prompt). Suppliers reuse their existing `phone` column, so only
+      // projects need a new field.
+      try {
+        await db.execute('ALTER TABLE projects ADD COLUMN whatsapp TEXT');
+      } catch (_) {/* column may already exist on partial upgrades */}
     }
   }
 

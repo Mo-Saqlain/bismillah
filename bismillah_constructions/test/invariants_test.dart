@@ -267,8 +267,12 @@ void main() {
     expect(remaining, isEmpty,
         reason: 'hard delete must remove both ledger rows');
 
+    // Scope to the delete row: creation is now also audited (a `create` row
+    // is written when the transaction is first posted), so an unscoped query
+    // would return both.
     final audit = await _db.query('change_log',
-        where: 'entity_id = ?', whereArgs: [txnId]);
+        where: 'entity_id = ? AND action = ?',
+        whereArgs: [txnId, ChangeAction.delete.db]);
     expect(audit, hasLength(1));
     expect(audit.first['action'], ChangeAction.delete.db);
     expect(audit.first['original_data'], contains('1000'));

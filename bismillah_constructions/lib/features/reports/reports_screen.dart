@@ -16,13 +16,17 @@ import 'supplier_ledger_picker_screen.dart';
 import 'supplier_spending_screen.dart';
 import 'wage_ledger_screen.dart';
 
-/// Reports landing page. Tiles are grouped into four sections so the
-/// list stays scannable as more reports get added:
+/// Reports landing page. Tiles are grouped into sections so the list stays
+/// scannable as more reports get added:
 ///   * **Financial Statements** — the big-three numbers a small business
 ///     looks at first (P&L, Balance Sheet, Cash Flow).
 ///   * **Ledgers** — per-party / per-account statements of activity.
 ///   * **Aging** — what's owed and how stale it is.
-///   * **Project** — project-specific reports (currently just BvA).
+///   * **Project** — project-specific reports.
+///
+/// Each tile is a compact single-line row (icon + name). The longer
+/// descriptions were removed so the list doesn't wrap into tall blocks on
+/// phones set to a large font / display size.
 class ReportsScreen extends StatelessWidget {
   const ReportsScreen({super.key});
 
@@ -40,8 +44,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.receipt_long,
             color: Colors.teal,
             title: 'Material Supplier Ledger',
-            subtitle:
-                'Statement of account for a material supplier (across or within a project)',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -51,8 +53,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.engineering,
             color: Colors.purple,
             title: 'Labour Supplier Ledger',
-            subtitle:
-                'Per-worker statement of every wage charged (paid + on credit), date-filterable',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -62,8 +62,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.account_balance_wallet,
             color: Colors.cyan,
             title: 'Bank / Wallet Ledger',
-            subtitle:
-                'Statement of every transaction through a specific bank or wallet',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -73,7 +71,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.foundation,
             color: Colors.indigo,
             title: 'Project Ledger',
-            subtitle: 'All transactions for a single project (running balance)',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -84,9 +81,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.trending_up,
             color: Colors.green,
             title: 'Income Statement (P&L)',
-            subtitle:
-                'Revenue, material costs by type, labour costs by worker, '
-                'loss provision and net profit',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -96,7 +90,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.account_balance,
             color: Colors.blue,
             title: 'Balance Sheet',
-            subtitle: 'Assets, liabilities and net worth retained in the business',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -106,8 +99,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.swap_vert,
             color: Colors.deepPurple,
             title: 'Cash Flow Statement',
-            subtitle:
-                'Operating and financing cash movement broken down by category',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -117,8 +108,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.timeline,
             color: Colors.lightGreen,
             title: 'Monthly P&L Trend',
-            subtitle:
-                'Recognized income, costs and net profit per month over the last 12 months',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -129,8 +118,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.hourglass_bottom,
             color: Colors.red,
             title: 'Aging — Payables',
-            subtitle:
-                'Outstanding supplier payables bucketed 0-30 / 31-60 / 61-90 / 90+',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -140,8 +127,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.hourglass_top,
             color: Colors.amber,
             title: 'Aging — Receivables',
-            subtitle:
-                'Money owed to you — projects under-funded by customers, suppliers we\'ve overpaid',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -152,8 +137,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.bar_chart,
             color: Colors.deepOrange,
             title: 'Supplier-wise Spending',
-            subtitle:
-                'Which vendors consume the most capital — material + labour combined, filterable by period',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -164,7 +147,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.assessment,
             color: Colors.pink,
             title: 'Budget vs Actual',
-            subtitle: 'Project budget vs actual spend, by category',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -174,8 +156,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.leaderboard,
             color: Colors.brown,
             title: 'Project Profitability',
-            subtitle:
-                'Per-project Received vs Spent vs Net, ranked by bottom-line return',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -185,8 +165,6 @@ class ReportsScreen extends StatelessWidget {
             icon: Icons.show_chart,
             color: Colors.indigo,
             title: 'Material Price Trend',
-            subtitle:
-                'Per-material unit-price history — spot rising prices early and quote new jobs better',
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -219,12 +197,10 @@ class _ReportTile extends StatelessWidget {
       {required this.icon,
       required this.color,
       required this.title,
-      required this.subtitle,
       required this.onTap});
   final IconData icon;
   final Color color;
   final String title;
-  final String subtitle;
   final VoidCallback onTap;
 
   @override
@@ -238,7 +214,6 @@ class _ReportTile extends StatelessWidget {
         ),
         title: Text(title,
             style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
       ),

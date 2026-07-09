@@ -33,7 +33,6 @@ class ManageScreen extends StatelessWidget {
             icon: Icons.foundation,
             color: Colors.indigo,
             title: 'Projects',
-            subtitle: 'Active sites, archived jobs and project metadata',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const ProjectsScreen()),
@@ -43,7 +42,6 @@ class ManageScreen extends StatelessWidget {
             icon: Icons.local_shipping,
             color: Colors.deepOrange,
             title: 'Suppliers',
-            subtitle: 'Material vendors and labour providers',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const SuppliersScreen()),
@@ -53,8 +51,6 @@ class ManageScreen extends StatelessWidget {
             icon: Icons.account_balance,
             color: Colors.teal,
             title: 'Wallets & Banks',
-            subtitle:
-                'Cash accounts, supervisor floats and bank/wallet ledgers',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const BanksScreen()),
@@ -64,8 +60,6 @@ class ManageScreen extends StatelessWidget {
             icon: Icons.category,
             color: Colors.brown,
             title: 'Material Types',
-            subtitle:
-                'Categories shown in the Buy Material dropdown (Brick, Cement, custom…)',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const MaterialTypesScreen()),
@@ -75,8 +69,6 @@ class ManageScreen extends StatelessWidget {
             icon: Icons.engineering,
             color: Colors.purple,
             title: 'Labour Types',
-            subtitle:
-                'Skill categories for labour (Mason, Electrician, Plumber…)',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const LabourTypesScreen()),
@@ -86,8 +78,6 @@ class ManageScreen extends StatelessWidget {
             icon: Icons.pending_actions,
             color: Colors.deepPurple,
             title: 'Recovery Follow-ups',
-            subtitle:
-                'Verbal payment promises and chase reminders — not yet accounting entries',
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FollowUpsScreen()),
@@ -104,14 +94,12 @@ class _ManageCard extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.title,
-    required this.subtitle,
     required this.onTap,
   });
 
   final IconData icon;
   final Color color;
   final String title;
-  final String subtitle;
   final VoidCallback onTap;
 
   @override
@@ -119,6 +107,8 @@ class _ManageCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Card(
+        // Single-line row: icon + name only. Descriptive blurb dropped so the
+        // list stays compact under large font/display scaling.
         child: ListTile(
           leading: CircleAvatar(
             backgroundColor: color.withValues(alpha: 0.15),
@@ -127,7 +117,6 @@ class _ManageCard extends StatelessWidget {
           ),
           title: Text(title,
               style: const TextStyle(fontWeight: FontWeight.w600)),
-          subtitle: Text(subtitle),
           trailing: const Icon(Icons.chevron_right),
           onTap: onTap,
         ),

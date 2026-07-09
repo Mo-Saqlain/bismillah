@@ -43,6 +43,9 @@ dependencies:
   # Backup file picker (import .db file)
   file_picker: ^8.0.7
 
+  # WhatsApp deep-linking (wa.me) for the post-transaction send prompt
+  url_launcher: ^6.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

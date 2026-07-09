@@ -45,7 +45,9 @@ class DashboardScreen extends ConsumerWidget {
       // up by exactly the pill's reserved height + a small visual
       // gap.
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: kPillNavReservedHeight + 4),
+        // Lift the FAB a clear gap above the floating pill nav — the old +4
+        // left it kissing the pill, worse on tall/gesture-nav phones.
+        padding: const EdgeInsets.only(bottom: kPillNavReservedHeight + 20),
         child: FloatingActionButton.extended(
           onPressed: () => Navigator.push(
             context,

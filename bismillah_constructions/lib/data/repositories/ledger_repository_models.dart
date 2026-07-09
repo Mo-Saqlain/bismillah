@@ -259,6 +259,10 @@ class AgingReport {
 class LabourRateClose {
   final double customerPaid;
   final double totalSpent;
+
+  /// Whether the fee is a percentage of spend or a flat amount — drives how
+  /// the close card labels the fee basis.
+  final ServiceFeeType feeType;
   final double feePercent;
   final double serviceFee;
   final double netToSettle;
@@ -266,6 +270,7 @@ class LabourRateClose {
   const LabourRateClose({
     required this.customerPaid,
     required this.totalSpent,
+    this.feeType = ServiceFeeType.percent,
     required this.feePercent,
     required this.serviceFee,
     required this.netToSettle,
