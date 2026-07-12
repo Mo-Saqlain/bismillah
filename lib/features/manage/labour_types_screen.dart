@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/formatters.dart';
+import '../../core/money_input.dart';
 import '../../data/models/labour_type_def.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
@@ -173,8 +174,7 @@ class _LabourTypeFormState extends State<_LabourTypeForm> {
     final r = widget.initial;
     _name = TextEditingController(text: r?.name ?? '');
     _desc = TextEditingController(text: r?.description ?? '');
-    _rate = TextEditingController(
-        text: r?.defaultDailyRate?.toStringAsFixed(0) ?? '');
+    _rate = TextEditingController(text: moneyInputText(r?.defaultDailyRate));
   }
 
   @override
@@ -245,6 +245,7 @@ class _LabourTypeFormState extends State<_LabourTypeForm> {
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]')),
+                const ThousandsSeparatorInputFormatter(),
               ],
               decoration: const InputDecoration(
                 labelText: 'Default Daily Rate (optional)',

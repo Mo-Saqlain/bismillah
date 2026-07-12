@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/formatters.dart';
+import '../../core/money_input.dart';
 import '../../core/theme.dart';
 import '../../data/models/follow_up.dart';
 import '../../data/models/project.dart';
@@ -108,8 +109,8 @@ class _FollowUpsScreenState extends ConsumerState<FollowUpsScreen> {
       {FollowUp? existing}) async {
     final titleCtrl = TextEditingController(text: existing?.title ?? '');
     final noteCtrl = TextEditingController(text: existing?.note ?? '');
-    final amountCtrl = TextEditingController(
-        text: existing?.amountEstimate?.toStringAsFixed(0) ?? '');
+    final amountCtrl =
+        TextEditingController(text: moneyInputText(existing?.amountEstimate));
     DateTime? expected = existing?.expectedDate;
     FollowUpPriority priority = existing?.priority ?? FollowUpPriority.medium;
     String? projectId = existing?.projectId;
@@ -172,7 +173,8 @@ class _FollowUpsScreenState extends ConsumerState<FollowUpsScreen> {
                             decimal: true),
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(
-                              RegExp(r'[0-9.]')),
+                              RegExp(r'[0-9.,]')),
+                          const ThousandsSeparatorInputFormatter(),
                         ],
                       ),
                     ),
@@ -244,7 +246,7 @@ class _FollowUpsScreenState extends ConsumerState<FollowUpsScreen> {
     if (saved != true) return;
     final title = titleCtrl.text.trim();
     if (title.isEmpty) return;
-    final amount = double.tryParse(amountCtrl.text);
+    final amount = double.tryParse(amountCtrl.text.replaceAll(',', ''));
     final repo = await ref.read(entityRepoProvider.future);
     if (existing == null) {
       await repo.addFollowUp(

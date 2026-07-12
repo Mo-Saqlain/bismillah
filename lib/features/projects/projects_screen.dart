@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants.dart';
 import '../../core/formatters.dart';
+import '../../core/money_input.dart';
 import '../../data/models/project.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
@@ -303,7 +304,8 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    const ThousandsSeparatorInputFormatter(),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -374,7 +376,8 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
                       keyboardType: const TextInputType.numberWithOptions(
                           decimal: true),
                       inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                        const ThousandsSeparatorInputFormatter(),
                       ],
                     ),
                 ],
@@ -383,7 +386,7 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
                   onPressed: () async {
                     final name = nameCtrl.text.trim();
                     if (name.isEmpty) return;
-                    final budget = double.tryParse(budgetCtrl.text);
+                    final budget = double.tryParse(budgetCtrl.text.replaceAll(',', ''));
                     // Hard validation: With-Material projects can't function
                     // accounting-wise without a contract value.
                     if (model == ProjectModel.withMaterial &&
@@ -420,7 +423,7 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
                       serviceFeeType: feeType,
                       serviceFeeAmount: model == ProjectModel.labourRate &&
                               feeType == ServiceFeeType.fixed
-                          ? double.tryParse(feeAmountCtrl.text)
+                          ? double.tryParse(feeAmountCtrl.text.replaceAll(',', ''))
                           : null,
                     );
                     bumpLedger(ref);
@@ -446,14 +449,14 @@ void _showProjectEditForm(
   final clientCtrl = TextEditingController(text: existing.clientName ?? '');
   final siteCtrl = TextEditingController(text: existing.siteAddress ?? '');
   final budgetCtrl =
-      TextEditingController(text: existing.budget?.toString() ?? '');
+      TextEditingController(text: moneyInputText(existing.budget));
   final managerCtrl =
       TextEditingController(text: existing.projectManager ?? '');
   final whatsappCtrl = TextEditingController(text: existing.whatsapp ?? '');
   final serviceFeeCtrl = TextEditingController(
       text: existing.serviceFeePercent?.toString() ?? '');
   final feeAmountCtrl = TextEditingController(
-      text: existing.serviceFeeAmount?.toString() ?? '');
+      text: moneyInputText(existing.serviceFeeAmount));
   ServiceFeeType feeType = existing.serviceFeeType;
 
   showModalBottomSheet<void>(
@@ -516,7 +519,8 @@ void _showProjectEditForm(
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                const ThousandsSeparatorInputFormatter(),
               ],
             ),
             const SizedBox(height: 12),
@@ -586,7 +590,8 @@ void _showProjectEditForm(
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    const ThousandsSeparatorInputFormatter(),
                   ],
                 ),
             ],
@@ -595,7 +600,7 @@ void _showProjectEditForm(
               onPressed: () async {
                 final name = nameCtrl.text.trim();
                 if (name.isEmpty) return;
-                final budget = double.tryParse(budgetCtrl.text);
+                final budget = double.tryParse(budgetCtrl.text.replaceAll(',', ''));
                 if (existing.model == ProjectModel.withMaterial &&
                     (budget == null || budget <= 0)) {
                   ScaffoldMessenger.of(sheetCtx).showSnackBar(const SnackBar(

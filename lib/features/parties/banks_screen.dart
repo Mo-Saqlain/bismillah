@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants.dart';
 import '../../core/formatters.dart';
+import '../../core/money_input.dart';
 import '../../data/models/bank.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
@@ -260,6 +262,10 @@ class _BanksScreenState extends ConsumerState<BanksScreen> {
                   ),
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    const ThousandsSeparatorInputFormatter(),
+                  ],
                 ),
               ],
               const SizedBox(height: 20),
@@ -273,7 +279,8 @@ class _BanksScreenState extends ConsumerState<BanksScreen> {
                       name: name,
                       accountNo: acctCtrl.text,
                     );
-                    final opening = double.tryParse(openingCtrl.text.trim()) ?? 0;
+                    final opening =
+                        double.tryParse(openingCtrl.text.replaceAll(',', '').trim()) ?? 0;
                     if (opening > 0) {
                       final ledger =
                           await ref.read(ledgerRepoProvider.future);

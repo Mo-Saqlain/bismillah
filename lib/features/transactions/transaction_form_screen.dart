@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants.dart';
 import '../../core/formatters.dart';
+import '../../core/money_input.dart';
 import '../../core/whatsapp.dart';
 import '../../data/models/labour_type_def.dart';
 import '../../data/models/party.dart';
@@ -516,7 +517,7 @@ class _TransactionFormScreenState
                     const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                  _ThousandsSeparatorFormatter(),
+                  const ThousandsSeparatorInputFormatter(),
                 ],
                 style: const TextStyle(
                     fontSize: 28, fontWeight: FontWeight.w600),
@@ -962,58 +963,6 @@ class _LabourTypePicker extends StatelessWidget {
         );
       },
     );
-  }
-}
-
-class _ThousandsSeparatorFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    final raw = newValue.text;
-    if (raw.isEmpty) return newValue;
-
-    final cursor = newValue.selection.baseOffset.clamp(0, raw.length);
-    var digitsBeforeCursor = 0;
-    for (var i = 0; i < cursor; i++) {
-      final ch = raw[i];
-      if (ch != ',' && ch != '.') digitsBeforeCursor++;
-    }
-
-    final stripped = raw.replaceAll(',', '');
-    final dotIdx = stripped.indexOf('.');
-    final intPart = dotIdx == -1 ? stripped : stripped.substring(0, dotIdx);
-    final fracPart = dotIdx == -1 ? '' : stripped.substring(dotIdx);
-
-    final grouped = _groupThousands(intPart);
-    final formatted = '$grouped$fracPart';
-
-    var newCursor = formatted.length;
-    var seen = 0;
-    for (var i = 0; i < formatted.length; i++) {
-      final ch = formatted[i];
-      if (ch != ',' && ch != '.') seen++;
-      if (seen >= digitsBeforeCursor) {
-        newCursor = i + 1;
-        break;
-      }
-    }
-
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: newCursor),
-    );
-  }
-
-  static String _groupThousands(String digits) {
-    if (digits.isEmpty) return '';
-    final buf = StringBuffer();
-    final n = digits.length;
-    for (var i = 0; i < n; i++) {
-      final fromRight = n - i;
-      buf.write(digits[i]);
-      if (fromRight > 1 && fromRight % 3 == 1) buf.write(',');
-    }
-    return buf.toString();
   }
 }
 
