@@ -137,4 +137,28 @@ void main() {
       expect(normalizeWhatsAppNumber(null), isNull);
     });
   });
+
+  group('WhatsApp deep-link generation', () {
+    test('builds a wa.me link with normalized number + encoded message', () {
+      const message =
+          'Bismillah Constructions\n\nMaterial Buy (Credit): Rs 50,000\n'
+          'Project: Kamran House';
+      final uri = whatsAppUri(number: '0300 1234567', message: message);
+
+      expect(uri, isNotNull);
+      expect(uri!.scheme, 'https');
+      expect(uri.host, 'wa.me');
+      expect(uri.path, '/923001234567');
+      // The message round-trips through URL decoding (newlines, spaces,
+      // commas all survive) — WhatsApp opens pre-filled with exactly it.
+      expect(uri.queryParameters['text'], message);
+      // And it is actually percent-encoded on the wire.
+      expect(uri.toString(), startsWith('https://wa.me/923001234567?text='));
+      expect(uri.toString(), contains('%0A')); // newline encoded
+    });
+
+    test('returns null when the number is unusable (prompt is skipped)', () {
+      expect(whatsAppUri(number: '   ', message: 'x'), isNull);
+    });
+  });
 }

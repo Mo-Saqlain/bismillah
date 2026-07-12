@@ -27,17 +27,25 @@ String? normalizeWhatsAppNumber(String? raw, {String defaultCountryCode = '92'})
   return d;
 }
 
+/// Builds the `wa.me` deep link for [number] with [message] pre-filled, or
+/// null when the number can't be normalized. Public so the link generation
+/// can be unit-tested without launching anything. The message is
+/// percent-encoded so newlines, spaces and `&` survive intact.
+Uri? whatsAppUri({required String number, required String message}) {
+  final n = normalizeWhatsAppNumber(number);
+  if (n == null) return null;
+  return Uri.parse('https://wa.me/$n?text=${Uri.encodeComponent(message)}');
+}
+
 /// Opens WhatsApp (app or web) with [message] pre-filled to [number].
 /// Returns false if the number is unusable or no handler could be launched.
+/// Requires the `<queries>` VIEW/https intent in AndroidManifest so
+/// `url_launcher` can resolve a handler on Android 11+.
 Future<bool> launchWhatsApp({
   required String number,
   required String message,
 }) async {
-  final n = normalizeWhatsAppNumber(number);
-  if (n == null) return false;
-  final uri = Uri.parse('https://wa.me/$n?text=${Uri.encodeComponent(message)}');
-  if (!await canLaunchUrl(uri)) {
-    return launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  final uri = whatsAppUri(number: number, message: message);
+  if (uri == null) return false;
   return launchUrl(uri, mode: LaunchMode.externalApplication);
 }
