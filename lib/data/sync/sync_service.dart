@@ -189,6 +189,13 @@ class SyncService {
   /// pass it, so they still respect the toggle.
   Future<void> syncNow({bool force = false}) async {
     if (!SupabaseConfig.configured) return;
+    // The DB can be closed underneath us during a restore/restart: after
+    // `LocalDb.reinitialize()` closes it (restore_gateway) and before the
+    // `restartApp()` provider-tree rebuild lands, this — the *old* —
+    // SyncService's ticker/connectivity callback may still fire. Querying a
+    // closed DB throws `database_closed`; skip silently. The SyncService
+    // recreated after the restart owns the fresh, open DB.
+    if (!_ledger.db.isOpen) return;
     if (!force && !await _entities.cloudSyncEnabled()) {
       _emit(SyncStatus(
         state: SyncState.disabled,
