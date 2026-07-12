@@ -19,8 +19,7 @@ class IncomeStatementScreen extends ConsumerStatefulWidget {
       _IncomeStatementScreenState();
 }
 
-class _IncomeStatementScreenState
-    extends ConsumerState<IncomeStatementScreen> {
+class _IncomeStatementScreenState extends ConsumerState<IncomeStatementScreen> {
   String? _projectId; // null = all projects
   DateTime? _from;
   DateTime? _to;
@@ -95,9 +94,15 @@ class _IncomeStatementScreenState
               decoration: const InputDecoration(labelText: 'Filter by Project'),
               items: [
                 const DropdownMenuItem<String?>(
-                    value: null, child: Text('All projects')),
-                ...list.map((p) => DropdownMenuItem<String?>(
-                    value: p.id, child: Text(p.name))),
+                  value: null,
+                  child: Text('All projects'),
+                ),
+                ...list.map(
+                  (p) => DropdownMenuItem<String?>(
+                    value: p.id,
+                    child: Text(p.name),
+                  ),
+                ),
               ],
               onChanged: (v) => setState(() => _projectId = v),
             ),
@@ -105,7 +110,8 @@ class _IncomeStatementScreenState
           const SizedBox(height: 16),
           FutureBuilder<_DetailedFigures>(
             key: ValueKey(
-                '$_projectId-$version-${_from?.toIso8601String()}-${_to?.toIso8601String()}'),
+              '$_projectId-$version-${_from?.toIso8601String()}-${_to?.toIso8601String()}',
+            ),
             future: figuresFuture,
             builder: (ctx, snap) {
               if (!snap.hasData) {
@@ -125,8 +131,10 @@ class _IncomeStatementScreenState
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Text('Period: ${formatPeriod(_from, _to)}',
-                        style: Theme.of(ctx).textTheme.bodySmall),
+                    child: Text(
+                      'Period: ${formatPeriod(_from, _to)}',
+                      style: Theme.of(ctx).textTheme.bodySmall,
+                    ),
                   ),
                   if (f.projectsAtRisk.isNotEmpty)
                     _AtRiskBanner(risks: f.projectsAtRisk),
@@ -138,187 +146,250 @@ class _IncomeStatementScreenState
                         children: [
                           // ── Income ──────────────────────────────────────
                           if (f.wmRevenue > 0)
-                            _row(context, 'Contract Revenue (With-Material)',
-                                f.wmRevenue),
+                            _row(
+                              context,
+                              'Contract Revenue (With-Material)',
+                              f.wmRevenue,
+                            ),
                           if (f.serviceFees > 0)
                             _row(context, 'Service Fees', f.serviceFees),
-                          _row(context, 'Total Income', totalIncome,
-                              bold: true),
+                          _row(
+                            context,
+                            'Total Income',
+                            totalIncome,
+                            bold: true,
+                          ),
                           const Divider(),
                           // ── Costs ────────────────────────────────────────
-                          _row(context, 'Material Costs', -f.matCosts,
-                              bold: true),
+                          _row(
+                            context,
+                            'Material Costs',
+                            -f.matCosts,
+                            bold: true,
+                          ),
                           // Material breakdown: one sub-line per type,
                           // plus an "Untracked" line for material spend
                           // that hit Material Costs in the journal but
                           // doesn't have a matching material_inventory
                           // row (legacy / direct posts).
-                          ..._sortedByValueDesc(d.materialByType).map((e) =>
-                              _row(context, '    ${e.key}', -e.value)),
+                          ..._sortedByValueDesc(
+                            d.materialByType,
+                          ).map((e) => _row(context, '    ${e.key}', -e.value)),
                           if (d.materialUntracked > 0)
-                            _row(context,
-                                '    Untracked (no inventory row)',
-                                -d.materialUntracked),
-                          _row(context, 'Labour Costs', -f.labCosts,
-                              bold: true),
+                            _row(
+                              context,
+                              '    Untracked (no inventory row)',
+                              -d.materialUntracked,
+                            ),
+                          _row(
+                            context,
+                            'Labour Costs',
+                            -f.labCosts,
+                            bold: true,
+                          ),
                           // Labour breakdown by worker. Skip when no
                           // entries — keeps the report tight on
                           // material-only projects.
-                          ..._sortedByValueDesc(d.labourBySupplier)
-                              .map((e) => _row(
-                                  context,
-                                  '    ${d.supplierNames[e.key] ?? e.key.substring(0, e.key.length.clamp(0, 8))}',
-                                  -e.value)),
+                          ..._sortedByValueDesc(d.labourBySupplier).map(
+                            (e) => _row(
+                              context,
+                              '    ${d.supplierNames[e.key] ?? e.key.substring(0, e.key.length.clamp(0, 8))}',
+                              -e.value,
+                            ),
+                          ),
                           if (f.personalDraw > 0)
                             _row(context, 'Personal Draw', -f.personalDraw),
                           if (f.lossProvision > 0)
-                            _row(context, 'Loss Provision (over-budget jobs)',
-                                -f.lossProvision,
-                                color: BalanceColors.negative(context)),
-                          _row(context, 'Total Costs', -totalCosts,
-                              bold: true),
+                            _row(
+                              context,
+                              'Loss Provision (over-budget jobs)',
+                              -f.lossProvision,
+                              color: BalanceColors.negative(context),
+                            ),
+                          _row(context, 'Total Costs', -totalCosts, bold: true),
                           const Divider(),
-                          _row(context, 'Net Profit / (Loss)', net,
-                              bold: true,
-                              color: BalanceColors.signed(context, net)),
+                          _row(
+                            context,
+                            'Net Profit / (Loss)',
+                            net,
+                            bold: true,
+                            color: BalanceColors.signed(context, net),
+                          ),
                           // ── Customer Deposits (informational) ───────────
                           if (totalDeposit > 0) ...[
                             const SizedBox(height: 12),
                             const Divider(),
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 4),
+                              padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Text(
-                                  'Customer Deposits (owed back)',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelLarge
-                                      ?.copyWith(
-                                          color: Colors.orange.shade700)),
+                                'Customer Deposits (owed back)',
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(color: Colors.orange.shade700),
+                              ),
                             ),
                             if (f.lrDeposit > 0)
-                              _row(context, '  Labour-Rate projects',
-                                  -f.lrDeposit,
-                                  color: Colors.orange.shade700),
+                              _row(
+                                context,
+                                '  Labour-Rate projects',
+                                -f.lrDeposit,
+                                color: Colors.orange.shade700,
+                              ),
                             if (f.wmDeposit > 0)
-                              _row(context, '  Unearned (With-Material)',
-                                  -f.wmDeposit,
-                                  color: Colors.orange.shade700),
-                            _row(context, '  Total deposits owed',
-                                -totalDeposit,
-                                bold: true, color: Colors.orange.shade700),
+                              _row(
+                                context,
+                                '  Unearned (With-Material)',
+                                -f.wmDeposit,
+                                color: Colors.orange.shade700,
+                              ),
+                            _row(
+                              context,
+                              '  Total deposits owed',
+                              -totalDeposit,
+                              bold: true,
+                              color: Colors.orange.shade700,
+                            ),
                           ],
                         ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Row(children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        icon: const Icon(Icons.picture_as_pdf),
-                        label: const Text('PDF'),
-                        onPressed: () async {
-                          String? name;
-                          if (_projectId != null) {
-                            final repo =
-                                await ref.read(entityRepoProvider.future);
-                            name = (await repo.project(_projectId!))?.name;
-                          }
-                          await PdfGenerator.previewIncomeStatement(
-                            IncomeStatementData(
-                              projectName: name,
-                              wmRevenue: f.wmRevenue,
-                              serviceFees: f.serviceFees,
-                              materialCosts: f.matCosts,
-                              labourCosts: f.labCosts,
-                              personalDraw: f.personalDraw,
-                              lrDeposit: f.lrDeposit,
-                              wmDeposit: f.wmDeposit,
-                              generatedAt: DateTime.now(),
-                              period: formatPeriod(_from, _to),
-                            ),
-                          );
-                        },
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          icon: const Icon(Icons.picture_as_pdf),
+                          label: const Text('PDF'),
+                          onPressed: () async {
+                            String? name;
+                            if (_projectId != null) {
+                              final repo = await ref.read(
+                                entityRepoProvider.future,
+                              );
+                              name = (await repo.project(_projectId!))?.name;
+                            }
+                            await PdfGenerator.previewIncomeStatement(
+                              IncomeStatementData(
+                                projectName: name,
+                                wmRevenue: f.wmRevenue,
+                                serviceFees: f.serviceFees,
+                                materialCosts: f.matCosts,
+                                labourCosts: f.labCosts,
+                                personalDraw: f.personalDraw,
+                                lrDeposit: f.lrDeposit,
+                                wmDeposit: f.wmDeposit,
+                                generatedAt: DateTime.now(),
+                                period: formatPeriod(_from, _to),
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.file_download),
-                        label: const Text('CSV'),
-                        onPressed: () async {
-                          String? name = 'All projects';
-                          if (_projectId != null) {
-                            final repo =
-                                await ref.read(entityRepoProvider.future);
-                            name =
-                                (await repo.project(_projectId!))?.name ??
-                                    name;
-                          }
-                          final csv = CsvExport.build(
-                            headers: const ['Particulars', 'Amount'],
-                            rows: [
-                              ['Project:', name],
-                              ['Period:', formatPeriod(_from, _to)],
-                              ['', ''],
-                              if (f.wmRevenue > 0)
-                                ['Contract Revenue (With-Material)',
-                                    f.wmRevenue.toStringAsFixed(2)],
-                              if (f.serviceFees > 0)
-                                ['Service Fees',
-                                    f.serviceFees.toStringAsFixed(2)],
-                              ['Total Income', totalIncome.toStringAsFixed(2)],
-                              ['', ''],
-                              ['Material Costs',
-                                  (-f.matCosts).toStringAsFixed(2)],
-                              for (final e
-                                  in _sortedByValueDesc(d.materialByType))
-                                ['    ${e.key}',
-                                    (-e.value).toStringAsFixed(2)],
-                              if (d.materialUntracked > 0)
-                                ['    Untracked (no inventory row)',
-                                    (-d.materialUntracked).toStringAsFixed(2)],
-                              ['Labour Costs',
-                                  (-f.labCosts).toStringAsFixed(2)],
-                              for (final e
-                                  in _sortedByValueDesc(d.labourBySupplier))
-                                [
-                                  '    ${d.supplierNames[e.key] ?? e.key}',
-                                  (-e.value).toStringAsFixed(2)
-                                ],
-                              if (f.personalDraw > 0)
-                                ['Personal Draw',
-                                    (-f.personalDraw).toStringAsFixed(2)],
-                              ['Total Costs',
-                                  (-totalCosts).toStringAsFixed(2)],
-                              ['Net Profit / (Loss)',
-                                  net.toStringAsFixed(2)],
-                              if (f.lrDeposit + f.wmDeposit > 0) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.file_download),
+                          label: const Text('CSV'),
+                          onPressed: () async {
+                            String? name = 'All projects';
+                            if (_projectId != null) {
+                              final repo = await ref.read(
+                                entityRepoProvider.future,
+                              );
+                              name =
+                                  (await repo.project(_projectId!))?.name ??
+                                  name;
+                            }
+                            final csv = CsvExport.build(
+                              headers: const ['Particulars', 'Amount'],
+                              rows: [
+                                ['Project:', name],
+                                ['Period:', formatPeriod(_from, _to)],
                                 ['', ''],
-                                ['-- Customer Deposits (owed back) --', ''],
-                                if (f.lrDeposit > 0)
-                                  ['  Labour-Rate projects',
-                                      (-f.lrDeposit).toStringAsFixed(2)],
-                                if (f.wmDeposit > 0)
-                                  ['  Over-budget (With-Material)',
-                                      (-f.wmDeposit).toStringAsFixed(2)],
-                                ['  Total deposits owed',
+                                if (f.wmRevenue > 0)
+                                  [
+                                    'Contract Revenue (With-Material)',
+                                    f.wmRevenue.toStringAsFixed(2),
+                                  ],
+                                if (f.serviceFees > 0)
+                                  [
+                                    'Service Fees',
+                                    f.serviceFees.toStringAsFixed(2),
+                                  ],
+                                [
+                                  'Total Income',
+                                  totalIncome.toStringAsFixed(2),
+                                ],
+                                ['', ''],
+                                [
+                                  'Material Costs',
+                                  (-f.matCosts).toStringAsFixed(2),
+                                ],
+                                for (final e in _sortedByValueDesc(
+                                  d.materialByType,
+                                ))
+                                  [
+                                    '    ${e.key}',
+                                    (-e.value).toStringAsFixed(2),
+                                  ],
+                                if (d.materialUntracked > 0)
+                                  [
+                                    '    Untracked (no inventory row)',
+                                    (-d.materialUntracked).toStringAsFixed(2),
+                                  ],
+                                [
+                                  'Labour Costs',
+                                  (-f.labCosts).toStringAsFixed(2),
+                                ],
+                                for (final e in _sortedByValueDesc(
+                                  d.labourBySupplier,
+                                ))
+                                  [
+                                    '    ${d.supplierNames[e.key] ?? e.key}',
+                                    (-e.value).toStringAsFixed(2),
+                                  ],
+                                if (f.personalDraw > 0)
+                                  [
+                                    'Personal Draw',
+                                    (-f.personalDraw).toStringAsFixed(2),
+                                  ],
+                                [
+                                  'Total Costs',
+                                  (-totalCosts).toStringAsFixed(2),
+                                ],
+                                ['Net Profit / (Loss)', net.toStringAsFixed(2)],
+                                if (f.lrDeposit + f.wmDeposit > 0) ...[
+                                  ['', ''],
+                                  ['-- Customer Deposits (owed back) --', ''],
+                                  if (f.lrDeposit > 0)
+                                    [
+                                      '  Labour-Rate projects',
+                                      (-f.lrDeposit).toStringAsFixed(2),
+                                    ],
+                                  if (f.wmDeposit > 0)
+                                    [
+                                      '  Over-budget (With-Material)',
+                                      (-f.wmDeposit).toStringAsFixed(2),
+                                    ],
+                                  [
+                                    '  Total deposits owed',
                                     (-(f.lrDeposit + f.wmDeposit))
-                                        .toStringAsFixed(2)],
+                                        .toStringAsFixed(2),
+                                  ],
+                                ],
                               ],
-                            ],
-                          );
-                          await CsvExport.share(
-                            fileName:
-                                'income_statement_${DateTime.now().millisecondsSinceEpoch}',
-                            csv: csv,
-                            subject: 'Income Statement — $name',
-                          );
-                        },
+                            );
+                            await CsvExport.share(
+                              fileName:
+                                  'income_statement_${DateTime.now().millisecondsSinceEpoch}',
+                              csv: csv,
+                              subject: 'Income Statement — $name',
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                  ]),
+                    ],
+                  ),
                 ],
               );
             },
@@ -328,8 +399,13 @@ class _IncomeStatementScreenState
     );
   }
 
-  Widget _row(BuildContext ctx, String label, double v,
-      {bool bold = false, Color? color}) {
+  Widget _row(
+    BuildContext ctx,
+    String label,
+    double v, {
+    bool bold = false,
+    Color? color,
+  }) {
     final style = TextStyle(
       fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
       color: color,
@@ -340,7 +416,15 @@ class _IncomeStatementScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: style),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
+          const SizedBox(width: 8),
           Text(fmtSignedMoney(v), style: style),
         ],
       ),
@@ -366,13 +450,17 @@ class _IncomeStatementScreenState
 /// indented sub-rows.
 class _DetailedFigures {
   final IncomeFigures figures;
+
   /// Material Costs split by `material_type`.
   final Map<String, double> materialByType;
+
   /// Material-Costs spend in the journal that has no matching
   /// `material_inventory` row (legacy data or unusual posts).
   final double materialUntracked;
+
   /// Labour Costs split by supplier id (worker).
   final Map<String, double> labourBySupplier;
+
   /// Supplier-id → display-name map covering active + archived.
   final Map<String, String> supplierNames;
 
@@ -401,10 +489,11 @@ class _AtRiskBanner extends StatelessWidget {
         : Colors.orange.shade700;
 
     return Card(
-      color: (overCount > 0
-              ? BalanceColors.negative(context)
-              : Colors.orange.shade700)
-          .withValues(alpha: 0.10),
+      color:
+          (overCount > 0
+                  ? BalanceColors.negative(context)
+                  : Colors.orange.shade700)
+              .withValues(alpha: 0.10),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -413,19 +502,22 @@ class _AtRiskBanner extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                    overCount > 0
-                        ? Icons.error_outline
-                        : Icons.warning_amber_outlined,
-                    color: headlineColor),
+                  overCount > 0
+                      ? Icons.error_outline
+                      : Icons.warning_amber_outlined,
+                  color: headlineColor,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     overCount > 0
                         ? 'Projects at risk — $overCount over budget'
-                            '${warnCount > 0 ? ', $warnCount approaching' : ''}'
+                              '${warnCount > 0 ? ', $warnCount approaching' : ''}'
                         : '$warnCount project(s) approaching budget',
                     style: TextStyle(
-                        fontWeight: FontWeight.w700, color: headlineColor),
+                      fontWeight: FontWeight.w700,
+                      color: headlineColor,
+                    ),
                   ),
                 ),
               ],
@@ -437,21 +529,24 @@ class _AtRiskBanner extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(r.projectName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13)),
+                      child: Text(
+                        r.projectName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13),
+                      ),
                     ),
                     Text(
                       r.isOverBudget
                           ? '${r.pctConsumed.toStringAsFixed(0)}% — over by ${fmtMoney(r.costsToDate - r.budget)}'
                           : '${r.pctConsumed.toStringAsFixed(0)}% used',
                       style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: r.isOverBudget
-                              ? BalanceColors.negative(context)
-                              : Colors.orange.shade800),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: r.isOverBudget
+                            ? BalanceColors.negative(context)
+                            : Colors.orange.shade800,
+                      ),
                     ),
                   ],
                 ),
@@ -459,8 +554,10 @@ class _AtRiskBanner extends StatelessWidget {
             if (risks.length > 5)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
-                child: Text('+ ${risks.length - 5} more',
-                    style: Theme.of(context).textTheme.bodySmall),
+                child: Text(
+                  '+ ${risks.length - 5} more',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
             const SizedBox(height: 8),
           ],

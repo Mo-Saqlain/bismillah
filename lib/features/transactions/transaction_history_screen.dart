@@ -30,8 +30,11 @@ class _TransactionHistoryScreenState
       if (created.isBefore(start)) return false;
     }
     if (_to != null) {
-      final endExclusive =
-          DateTime(_to!.year, _to!.month, _to!.day).add(const Duration(days: 1));
+      final endExclusive = DateTime(
+        _to!.year,
+        _to!.month,
+        _to!.day,
+      ).add(const Duration(days: 1));
       if (!created.isBefore(endExclusive)) return false;
     }
     return true;
@@ -125,9 +128,7 @@ class _TransactionHistoryScreenState
                         padding: EdgeInsets.fromLTRB(4, i == 0 ? 4 : 16, 4, 8),
                         child: Text(
                           item,
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
+                          style: Theme.of(context).textTheme.labelMedium
                               ?.copyWith(
                                 color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w700,
@@ -147,95 +148,115 @@ class _TransactionHistoryScreenState
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Card(
                         color: isDeleted
-                            ? Theme.of(context)
-                                .colorScheme
-                                .errorContainer
-                                .withValues(alpha: 0.18)
+                            ? Theme.of(context).colorScheme.errorContainer
+                                  .withValues(alpha: 0.18)
                             : null,
                         child: InkWell(
                           onTap: () => _showActions(
-                              context, ref, dr.transactionId, isDeleted),
+                            context,
+                            ref,
+                            dr.transactionId,
+                            isDeleted,
+                          ),
                           child: Padding(
                             padding: const EdgeInsets.all(12),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      fmtMoney(dr.debit),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
+                                    Expanded(
+                                      child: Text(
+                                        fmtMoney(dr.debit),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
                                               fontWeight: FontWeight.w700,
                                               color: isDeleted
                                                   ? BalanceColors.negative(
-                                                      context)
+                                                      context,
+                                                    )
                                                   : null,
                                               decoration: isDeleted
                                                   ? TextDecoration.lineThrough
-                                                  : null),
+                                                  : null,
+                                            ),
+                                      ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Row(
                                       children: [
                                         if (isDeleted)
                                           const Padding(
-                                            padding:
-                                                EdgeInsets.only(right: 6),
-                                            child: Text('DELETED',
-                                                style: TextStyle(
-                                                    fontSize: 10,
-                                                    fontWeight:
-                                                        FontWeight.w800)),
+                                            padding: EdgeInsets.only(right: 6),
+                                            child: Text(
+                                              'DELETED',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
                                           ),
                                         if (dr.synced == 0 && !isDeleted)
                                           Padding(
                                             padding: const EdgeInsets.only(
-                                                right: 6),
-                                            child: Icon(Icons.sync,
-                                                size: 14,
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .secondary),
+                                              right: 6,
+                                            ),
+                                            child: Icon(
+                                              Icons.sync,
+                                              size: 14,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.secondary,
+                                            ),
                                           ),
-                                        Text(fmtDateTime(dr.createdAt),
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall),
+                                        Text(
+                                          fmtDateTime(dr.createdAt),
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.bodySmall,
+                                        ),
                                         const SizedBox(width: 4),
-                                        Icon(Icons.more_vert,
-                                            size: 16,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant),
+                                        Icon(
+                                          Icons.more_vert,
+                                          size: 16,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
                                       ],
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 6),
-                                Text('Dr  ${Accounts.byId(dr.accountId).name}',
-                                    style: TextStyle(
-                                      decoration: isDeleted
-                                          ? TextDecoration.lineThrough
-                                          : null,
-                                    )),
                                 Text(
-                                    '     Cr  ${Accounts.byId(cr.accountId).name}',
-                                    style: TextStyle(
-                                      decoration: isDeleted
-                                          ? TextDecoration.lineThrough
-                                          : null,
-                                    )),
+                                  'Dr  ${Accounts.byId(dr.accountId).name}',
+                                  style: TextStyle(
+                                    decoration: isDeleted
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                  ),
+                                ),
+                                Text(
+                                  '     Cr  ${Accounts.byId(cr.accountId).name}',
+                                  style: TextStyle(
+                                    decoration: isDeleted
+                                        ? TextDecoration.lineThrough
+                                        : null,
+                                  ),
+                                ),
                                 if (dr.description != null &&
                                     dr.description!.isNotEmpty) ...[
                                   const SizedBox(height: 6),
-                                  Text(dr.description!,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall),
+                                  Text(
+                                    dr.description!,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
+                                  ),
                                 ],
                               ],
                             ),
@@ -253,110 +274,128 @@ class _TransactionHistoryScreenState
     );
   }
 
-  void _showActions(BuildContext context, WidgetRef ref, String txnId,
-      bool isDeleted) {
+  void _showActions(
+    BuildContext context,
+    WidgetRef ref,
+    String txnId,
+    bool isDeleted,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       builder: (sheetCtx) => SafeArea(
-        child: Wrap(
-          children: [
-            if (!isDeleted)
-              ListTile(
-                leading: const Icon(Icons.delete_forever, color: Colors.red),
-                title: const Text('Delete (permanent)'),
-                subtitle: const Text(
-                    'Removes both ledger rows. Original payload kept in change_log for audit.'),
-                onTap: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  Navigator.pop(sheetCtx);
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Delete this transaction?'),
-                      content: const Text(
+        child: SingleChildScrollView(
+          child: Wrap(
+            children: [
+              if (!isDeleted)
+                ListTile(
+                  leading: const Icon(Icons.delete_forever, color: Colors.red),
+                  title: const Text('Delete (permanent)'),
+                  subtitle: const Text(
+                    'Removes both ledger rows. Original payload kept in change_log for audit.',
+                  ),
+                  onTap: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    Navigator.pop(sheetCtx);
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Delete this transaction?'),
+                        content: const Text(
                           'Both rows of this transaction will be removed from the ledger. '
-                          'A copy is preserved in the audit log.'),
-                      actions: [
-                        TextButton(
+                          'A copy is preserved in the audit log.',
+                        ),
+                        actions: [
+                          TextButton(
                             onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancel')),
-                        FilledButton(
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
                             style: FilledButton.styleFrom(
-                                backgroundColor: Colors.red),
+                              backgroundColor: Colors.red,
+                            ),
                             onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Delete')),
-                      ],
-                    ),
-                  );
-                  if (confirm != true) return;
-                  try {
-                    final ledger = await ref.read(ledgerRepoProvider.future);
-                    await ledger.hardDeleteTransaction(txnId);
-                    bumpLedger(ref);
-                    messenger.showSnackBar(
-                        const SnackBar(content: Text('Transaction deleted')));
-                  } catch (e) {
-                    messenger.showSnackBar(
-                        SnackBar(content: Text('Delete failed: $e')));
-                  }
-                },
-              ),
-            if (!isDeleted)
-              ListTile(
-                leading: const Icon(Icons.delete_outline),
-                title: const Text('Soft delete (keeps audit row visible)'),
-                subtitle: const Text(
-                    'Marks the transaction as deleted but keeps it visible with strikethrough when "Show deleted" is on'),
-                onTap: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-                  try {
-                    final ledger = await ref.read(ledgerRepoProvider.future);
-                    await ledger.softDeleteTransaction(txnId);
-                    bumpLedger(ref);
-                  } catch (e) {
-                    messenger.showSnackBar(
-                        SnackBar(content: Text('Delete failed: $e')));
-                  }
-                },
-              ),
-            if (isDeleted)
-              ListTile(
-                leading: const Icon(Icons.restore),
-                title: const Text('Restore'),
-                onTap: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-                  try {
-                    final ledger = await ref.read(ledgerRepoProvider.future);
-                    await ledger.restoreTransaction(txnId);
-                    bumpLedger(ref);
-                  } catch (e) {
-                    messenger.showSnackBar(
-                        SnackBar(content: Text('Restore failed: $e')));
-                  }
-                },
-              ),
-            if (!isDeleted)
-              ListTile(
-                leading: const Icon(Icons.swap_horiz),
-                title: const Text('Post Reversing Entry'),
-                subtitle: const Text(
-                    'Adds an offsetting transaction (recommended for accounting integrity)'),
-                onTap: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-                  try {
-                    final ledger = await ref.read(ledgerRepoProvider.future);
-                    await ledger.postReversal(txnId);
-                    bumpLedger(ref);
-                  } catch (e) {
-                    messenger.showSnackBar(
-                        SnackBar(content: Text('Failed: $e')));
-                  }
-                },
-              ),
-          ],
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm != true) return;
+                    try {
+                      final ledger = await ref.read(ledgerRepoProvider.future);
+                      await ledger.hardDeleteTransaction(txnId);
+                      bumpLedger(ref);
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Transaction deleted')),
+                      );
+                    } catch (e) {
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('Delete failed: $e')),
+                      );
+                    }
+                  },
+                ),
+              if (!isDeleted)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline),
+                  title: const Text('Soft delete (keeps audit row visible)'),
+                  subtitle: const Text(
+                    'Marks the transaction as deleted but keeps it visible with strikethrough when "Show deleted" is on',
+                  ),
+                  onTap: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                    try {
+                      final ledger = await ref.read(ledgerRepoProvider.future);
+                      await ledger.softDeleteTransaction(txnId);
+                      bumpLedger(ref);
+                    } catch (e) {
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('Delete failed: $e')),
+                      );
+                    }
+                  },
+                ),
+              if (isDeleted)
+                ListTile(
+                  leading: const Icon(Icons.restore),
+                  title: const Text('Restore'),
+                  onTap: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                    try {
+                      final ledger = await ref.read(ledgerRepoProvider.future);
+                      await ledger.restoreTransaction(txnId);
+                      bumpLedger(ref);
+                    } catch (e) {
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('Restore failed: $e')),
+                      );
+                    }
+                  },
+                ),
+              if (!isDeleted)
+                ListTile(
+                  leading: const Icon(Icons.swap_horiz),
+                  title: const Text('Post Reversing Entry'),
+                  subtitle: const Text(
+                    'Adds an offsetting transaction (recommended for accounting integrity)',
+                  ),
+                  onTap: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                    try {
+                      final ledger = await ref.read(ledgerRepoProvider.future);
+                      await ledger.postReversal(txnId);
+                      bumpLedger(ref);
+                    } catch (e) {
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('Failed: $e')),
+                      );
+                    }
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );

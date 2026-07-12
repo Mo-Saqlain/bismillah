@@ -129,31 +129,41 @@ class LedgerView extends StatelessWidget {
                     ],
                   ),
                   const Divider(),
-                  ...rows.map((r) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            _C(fmtDate(r.date), flex: 3),
-                            _C(r.memo, flex: 4),
-                            _C(r.debit > 0 ? fmtMoney(r.debit) : '',
-                                flex: 2, right: true),
-                            _C(r.credit > 0 ? fmtMoney(r.credit) : '',
-                                flex: 2, right: true),
-                            _C(
-                              signedTotal
-                                  ? fmtSignedMoney(r.balance)
-                                  : fmtMoney(r.balance),
-                              flex: 3,
-                              right: true,
-                              bold: true,
-                              color: signedTotal
-                                  ? BalanceColors.signed(context,
-                                      invertColorSign ? -r.balance : r.balance)
-                                  : null,
-                            ),
-                          ],
-                        ),
-                      )),
+                  ...rows.map(
+                    (r) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          _C(fmtDate(r.date), flex: 3),
+                          _C(r.memo, flex: 4),
+                          _C(
+                            r.debit > 0 ? fmtMoney(r.debit) : '',
+                            flex: 2,
+                            right: true,
+                          ),
+                          _C(
+                            r.credit > 0 ? fmtMoney(r.credit) : '',
+                            flex: 2,
+                            right: true,
+                          ),
+                          _C(
+                            signedTotal
+                                ? fmtSignedMoney(r.balance)
+                                : fmtMoney(r.balance),
+                            flex: 3,
+                            right: true,
+                            bold: true,
+                            color: signedTotal
+                                ? BalanceColors.signed(
+                                    context,
+                                    invertColorSign ? -r.balance : r.balance,
+                                  )
+                                : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -168,16 +178,20 @@ class LedgerView extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(totalLabel,
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text(
+                totalLabel,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
               Text(
                 signedTotal ? fmtSignedMoney(totalValue) : fmtMoney(totalValue),
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 18,
                   color: signedTotal
-                      ? BalanceColors.signed(context,
-                          invertColorSign ? -totalValue : totalValue)
+                      ? BalanceColors.signed(
+                          context,
+                          invertColorSign ? -totalValue : totalValue,
+                        )
                       : null,
                 ),
               ),
@@ -196,35 +210,63 @@ class _H extends StatelessWidget {
   final bool right;
   @override
   Widget build(BuildContext context) => Expanded(
-        flex: flex,
-        child: Text(text,
-            textAlign: right ? TextAlign.right : TextAlign.left,
-            style:
-                const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-      );
+    flex: flex,
+    child: Text(
+      text,
+      textAlign: right ? TextAlign.right : TextAlign.left,
+      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+    ),
+  );
 }
 
 class _C extends StatelessWidget {
-  const _C(this.text,
-      {required this.flex,
-      this.right = false,
-      this.bold = false,
-      this.color});
+  const _C(
+    this.text, {
+    required this.flex,
+    this.right = false,
+    this.bold = false,
+    this.color,
+  });
   final String text;
   final int flex;
   final bool right;
   final bool bold;
   final Color? color;
   @override
-  Widget build(BuildContext context) => Expanded(
-        flex: flex,
-        child: Text(text,
-            textAlign: right ? TextAlign.right : TextAlign.left,
-            style: TextStyle(
+  Widget build(BuildContext context) {
+    final t = Text(
+      text,
+      maxLines: 1,
+      textAlign: right ? TextAlign.right : TextAlign.left,
+      style: TextStyle(
+        fontSize: 12,
+        color: color,
+        fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
+      ),
+    );
+    return Expanded(
+      flex: flex,
+      // Money columns (right-aligned) scale down so no digits are lost;
+      // text columns (date/memo) ellipsize. Either way the cell never
+      // overflows or silently clips at a large OS text scale.
+      child: right
+          ? FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: t,
+            )
+          : Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
                 fontSize: 12,
                 color: color,
-                fontWeight: bold ? FontWeight.w700 : FontWeight.normal)),
-      );
+                fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
+              ),
+            ),
+    );
+  }
 }
 
 /// PDF + CSV action buttons for an AppBar.
@@ -248,29 +290,32 @@ class LedgerExportActions extends StatelessWidget {
   final bool enabled;
   final String disabledMessage;
 
-  void _notify(BuildContext context) =>
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(disabledMessage)),
-      );
+  void _notify(BuildContext context) => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(disabledMessage)));
 
   @override
   Widget build(BuildContext context) {
-    final fg = Theme.of(context).appBarTheme.foregroundColor ??
+    final fg =
+        Theme.of(context).appBarTheme.foregroundColor ??
         Theme.of(context).colorScheme.onPrimary;
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      IconButton(
-        tooltip: 'Export PDF',
-        icon: const Icon(Icons.picture_as_pdf, size: 26),
-        color: fg,
-        onPressed: enabled ? onExportPdf : () => _notify(context),
-      ),
-      IconButton(
-        tooltip: 'Export CSV',
-        icon: const Icon(Icons.file_download, size: 26),
-        color: fg,
-        onPressed: enabled ? onExportCsv : () => _notify(context),
-      ),
-      const SizedBox(width: 4),
-    ]);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Export PDF',
+          icon: const Icon(Icons.picture_as_pdf, size: 26),
+          color: fg,
+          onPressed: enabled ? onExportPdf : () => _notify(context),
+        ),
+        IconButton(
+          tooltip: 'Export CSV',
+          icon: const Icon(Icons.file_download, size: 26),
+          color: fg,
+          onPressed: enabled ? onExportCsv : () => _notify(context),
+        ),
+        const SizedBox(width: 4),
+      ],
+    );
   }
 }

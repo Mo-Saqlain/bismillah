@@ -31,8 +31,7 @@ class _ProjectReconciliationScreenState
   ProjectReconciliation? _rec;
   double? _outflow;
   LabourRateClose? _close;
-  ({double supplierPayables, double ledgerNet, double serviceFeeBooked})?
-      _gate;
+  ({double supplierPayables, double ledgerNet, double serviceFeeBooked})? _gate;
   ProjectSnapshot? _snapshot;
   bool _loading = true;
   bool _busy = false;
@@ -89,14 +88,19 @@ class _ProjectReconciliationScreenState
       bumpLedger(ref);
       await _load();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
             content: Text(
-                'Service fee posted (${fmtMoney(close.serviceFee)}). Settle the remaining cash gap, then archive.')));
+              'Service fee posted (${fmtMoney(close.serviceFee)}). Settle the remaining cash gap, then archive.',
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -113,8 +117,9 @@ class _ProjectReconciliationScreenState
       );
       bumpLedger(ref);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Project archived (data preserved).')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Project archived (data preserved).')),
+        );
         Navigator.pop(context);
       }
     } on ProjectBudgetMismatchException catch (e) {
@@ -127,24 +132,28 @@ class _ProjectReconciliationScreenState
       if (mounted) {
         final msg = e.netToSettle > 0
             ? 'Archive blocked — refund the customer '
-                '${fmtMoney(e.refundToCustomer)} of surplus deposit first.'
+                  '${fmtMoney(e.refundToCustomer)} of surplus deposit first.'
             : 'Archive blocked — collect '
-                '${fmtMoney(e.customerOwesUs)} still owed by the customer first.';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(msg),
-          duration: const Duration(seconds: 6),
-        ));
+                  '${fmtMoney(e.customerOwesUs)} still owed by the customer first.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), duration: const Duration(seconds: 6)),
+        );
       }
     } on ReconciliationException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
             content: Text(
-                'Archive blocked — ${fmtSignedMoney(e.outstandingPayables)} of supplier payables still open.')));
+              'Archive blocked — ${fmtSignedMoney(e.outstandingPayables)} of supplier payables still open.',
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -167,13 +176,15 @@ class _ProjectReconciliationScreenState
   ///
   /// Both paths require deliberate action; archive can no longer happen
   /// by accident from a single dialog tap.
-  Future<void> _handleBudgetMismatch(
-      ProjectBudgetMismatchException e) async {
+  Future<void> _handleBudgetMismatch(ProjectBudgetMismatchException e) async {
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        icon: Icon(Icons.compare_arrows,
-            color: Theme.of(ctx).colorScheme.error, size: 36),
+        icon: Icon(
+          Icons.compare_arrows,
+          color: Theme.of(ctx).colorScheme.error,
+          size: 36,
+        ),
         title: const Text('Customer hasn\'t paid the full budget'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -183,29 +194,37 @@ class _ProjectReconciliationScreenState
             const SizedBox(height: 4),
             Text('Total received:   ${fmtMoney(e.received)}'),
             const SizedBox(height: 4),
-            Text('Still owed:       ${fmtMoney(e.shortfall)}',
-                style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: BalanceColors.negative(context))),
+            Text(
+              'Still owed:       ${fmtMoney(e.shortfall)}',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: BalanceColors.negative(context),
+              ),
+            ),
             const SizedBox(height: 12),
-            const Text('This project can\'t be archived until the customer '
-                'pays the full contract value. Two ways forward:'),
+            const Text(
+              'This project can\'t be archived until the customer '
+              'pays the full contract value. Two ways forward:',
+            ),
             const SizedBox(height: 8),
             const Text(
-                '1.  Record the remaining payment via + → Receive from '
-                'Project, then try archive again.'),
+              '1.  Record the remaining payment via + → Receive from '
+              'Project, then try archive again.',
+            ),
             const SizedBox(height: 4),
             const Text(
-                '2.  If the customer has genuinely abandoned the contract, '
-                'go to Manage → Projects → Edit and change the budget to '
-                'match what was actually received. The change is logged. '
-                'Then retry archive.'),
+              '2.  If the customer has genuinely abandoned the contract, '
+              'go to Manage → Projects → Edit and change the budget to '
+              'match what was actually received. The change is logged. '
+              'Then retry archive.',
+            ),
           ],
         ),
         actions: [
           FilledButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('OK')),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
         ],
       ),
     );
@@ -213,7 +232,10 @@ class _ProjectReconciliationScreenState
 
   @override
   Widget build(BuildContext context) {
-    if (_loading || _rec == null || _outflow == null || _gate == null ||
+    if (_loading ||
+        _rec == null ||
+        _outflow == null ||
+        _gate == null ||
         _snapshot == null) {
       return Scaffold(
         appBar: AppBar(title: Text(widget.project.name)),
@@ -241,7 +263,8 @@ class _ProjectReconciliationScreenState
     //     deficit collected before close.
     final canArchive = payablesOk && (!isLabour || ledgerOk);
 
-    final feeAlreadyPosted = (_close?.serviceFee ?? 0) > 0 &&
+    final feeAlreadyPosted =
+        (_close?.serviceFee ?? 0) > 0 &&
         gate.serviceFeeBooked >= (_close!.serviceFee - 0.01);
 
     return Scaffold(
@@ -262,18 +285,20 @@ class _ProjectReconciliationScreenState
           _Row(label: 'Received from Project', value: rec.projectInflow),
           _Row(label: 'Supplier Paid', value: rec.supplierPaid),
           _Row(
-              label: 'Supplier Payables Outstanding',
-              value: gate.supplierPayables,
-              colorize: !payablesOk),
+            label: 'Supplier Payables Outstanding',
+            value: gate.supplierPayables,
+            colorize: !payablesOk,
+          ),
           _Row(label: 'Service Fee Booked', value: gate.serviceFeeBooked),
           // For LR this is a hard gate (must net to zero before archive);
           // for WM it's informational — the gap is the project's profit.
           _Row(
-              label: isLabour
-                  ? 'Project Ledger Net'
-                  : 'Project Ledger Net (informational)',
-              value: gate.ledgerNet,
-              colorize: isLabour && !ledgerOk),
+            label: isLabour
+                ? 'Project Ledger Net'
+                : 'Project Ledger Net (informational)',
+            value: gate.ledgerNet,
+            colorize: isLabour && !ledgerOk,
+          ),
           const SizedBox(height: 12),
           _SectionTitle(title: 'Profit (${p.model.label})'),
           _Row(label: 'Total Project Outflow', value: outflow),
@@ -283,13 +308,15 @@ class _ProjectReconciliationScreenState
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                  'No service fee % is set on this project. Edit the project to set one before archiving.'),
+                'No service fee % is set on this project. Edit the project to set one before archiving.',
+              ),
             )
           else
             _Row(
-                label: 'Realized Profit (Received − Outflow)',
-                value: rec.projectInflow - outflow,
-                colorize: true),
+              label: 'Realized Profit (Received − Outflow)',
+              value: rec.projectInflow - outflow,
+              colorize: true,
+            ),
           if (!isLabour) ...[
             const SizedBox(height: 4),
             Text(
@@ -314,9 +341,11 @@ class _ProjectReconciliationScreenState
             FilledButton.icon(
               onPressed: _busy ? null : _postServiceFee,
               icon: const Icon(Icons.percent),
-              label: Text(_busy
-                  ? 'Working…'
-                  : 'Post Service Fee (${fmtMoney(_close!.serviceFee)})'),
+              label: Text(
+                _busy
+                    ? 'Working…'
+                    : 'Post Service Fee (${fmtMoney(_close!.serviceFee)})',
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -333,8 +362,9 @@ class _ProjectReconciliationScreenState
             icon: const Icon(Icons.archive),
             label: Text(_busy ? 'Archiving…' : 'Archive Project'),
             style: FilledButton.styleFrom(
-              backgroundColor:
-                  canArchive ? null : Theme.of(context).colorScheme.error,
+              backgroundColor: canArchive
+                  ? null
+                  : Theme.of(context).colorScheme.error,
             ),
           ),
           const SizedBox(height: 8),
@@ -342,14 +372,14 @@ class _ProjectReconciliationScreenState
             canArchive
                 ? 'Books are settled — safe to archive. Data is preserved for legal evidence.'
                 : isLabour
-                    ? 'Archive blocked. Pay every supplier and either refund '
-                        'the surplus customer deposit or collect what is '
-                        'still owed so the project ledger nets to zero.'
-                    : 'Archive blocked. Settle every supplier payable for '
-                        'this project, then try again.',
+                ? 'Archive blocked. Pay every supplier and either refund '
+                      'the surplus customer deposit or collect what is '
+                      'still owed so the project ledger nets to zero.'
+                : 'Archive blocked. Settle every supplier payable for '
+                      'this project, then try again.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: canArchive ? null : BalanceColors.negative(context),
-                ),
+              color: canArchive ? null : BalanceColors.negative(context),
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -387,10 +417,12 @@ class _StatusBanner extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(ok ? Icons.check_circle : Icons.error_outline,
-                color: ok
-                    ? BalanceColors.positive(context)
-                    : BalanceColors.negative(context)),
+            Icon(
+              ok ? Icons.check_circle : Icons.error_outline,
+              color: ok
+                  ? BalanceColors.positive(context)
+                  : BalanceColors.negative(context),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -416,8 +448,7 @@ class _StatusBanner extends StatelessWidget {
     // (surplus to refund). The LR business meaning is what matters.
     if (isLabour && ledgerNet.abs() >= 0.01) {
       if (ledgerNet < 0) {
-        pieces.add(
-            'refund ${fmtMoney(-ledgerNet)} surplus customer deposit');
+        pieces.add('refund ${fmtMoney(-ledgerNet)} surplus customer deposit');
       } else {
         pieces.add('collect ${fmtMoney(ledgerNet)} still owed by customer');
       }
@@ -449,14 +480,16 @@ class _LabourRateCloseCard extends StatelessWidget {
           _Row(label: 'Spent on Customer\'s Behalf', value: close.totalSpent),
           if (close.feeType == ServiceFeeType.percent)
             _Row(
-                label: 'Service Fee % configured',
-                value: close.feePercent,
-                suffix: '%'),
+              label: 'Service Fee % configured',
+              value: close.feePercent,
+              suffix: '%',
+            ),
           _Row(
-              label: close.feeType == ServiceFeeType.fixed
-                  ? 'Service Fee (fixed)'
-                  : 'Service Fee Amount',
-              value: close.serviceFee),
+            label: close.feeType == ServiceFeeType.fixed
+                ? 'Service Fee (fixed)'
+                : 'Service Fee Amount',
+            value: close.serviceFee,
+          ),
           const Divider(),
           Container(
             padding: const EdgeInsets.all(12),
@@ -486,12 +519,12 @@ class _LabourRateCloseCard extends StatelessWidget {
                       Text(
                         surplus
                             ? '${fmtMoney(close.refundToCustomer)} — surplus '
-                                'after service fee. Record this as a separate '
-                                'cash-out transaction when refunded.'
+                                  'after service fee. Record this as a separate '
+                                  'cash-out transaction when refunded.'
                             : '${fmtMoney(close.customerOwesUs)} — covers the '
-                                'spending shortfall plus the service fee. '
-                                'Record this as Receive From Project (deficit) '
-                                'and a separate fee receipt when collected.',
+                                  'spending shortfall plus the service fee. '
+                                  'Record this as Receive From Project (deficit) '
+                                  'and a separate fee receipt when collected.',
                       ),
                     ],
                   ),
@@ -510,9 +543,9 @@ class _SectionTitle extends StatelessWidget {
   final String title;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Text(title, style: Theme.of(context).textTheme.titleSmall),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Text(title, style: Theme.of(context).textTheme.titleSmall),
+  );
 }
 
 /// Closure Assistant — financial reconciliation summary that sits at the
@@ -529,19 +562,25 @@ class _ClosureAssistant extends StatelessWidget {
     final warnings = <String>[];
     if (snapshot.supplierPayables.abs() >= 0.01) {
       warnings.add(
-          'Supplier payables of ${fmtMoney(snapshot.supplierPayables)} are still open.');
+        'Supplier payables of ${fmtMoney(snapshot.supplierPayables)} are still open.',
+      );
     }
     if (snapshot.budget > 0 && snapshot.spent > snapshot.budget) {
       warnings.add(
-          'Costs have exceeded budget by ${fmtMoney(snapshot.spent - snapshot.budget)}.');
+        'Costs have exceeded budget by ${fmtMoney(snapshot.spent - snapshot.budget)}.',
+      );
     }
-    if (snapshot.budget > 0 && snapshot.received < snapshot.budget && !isLabour) {
+    if (snapshot.budget > 0 &&
+        snapshot.received < snapshot.budget &&
+        !isLabour) {
       warnings.add(
-          'Customer has paid ${fmtMoney(snapshot.budget - snapshot.received)} less than the contract value.');
+        'Customer has paid ${fmtMoney(snapshot.budget - snapshot.received)} less than the contract value.',
+      );
     }
     if (isLabour && snapshot.customerDeposit > 0.01) {
       warnings.add(
-          'Customer deposit of ${fmtMoney(snapshot.customerDeposit)} still needs to be refunded or reclassified.');
+        'Customer deposit of ${fmtMoney(snapshot.customerDeposit)} still needs to be refunded or reclassified.',
+      );
     }
 
     return Card(
@@ -552,13 +591,17 @@ class _ClosureAssistant extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.summarize,
-                    color: Theme.of(context).colorScheme.primary),
+                Icon(
+                  Icons.summarize,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 const SizedBox(width: 8),
-                Text('Closure summary',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        )),
+                Text(
+                  'Closure summary',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -566,14 +609,16 @@ class _ClosureAssistant extends StatelessWidget {
             _SummaryRow(label: 'Received', value: snapshot.received),
             _SummaryRow(label: 'Spent', value: snapshot.spent),
             _SummaryRow(
-                label: 'Supplier payables outstanding',
-                value: snapshot.supplierPayables,
-                colorize: snapshot.supplierPayables > 0.01
-                    ? -snapshot.supplierPayables
-                    : null),
+              label: 'Supplier payables outstanding',
+              value: snapshot.supplierPayables,
+              colorize: snapshot.supplierPayables > 0.01
+                  ? -snapshot.supplierPayables
+                  : null,
+            ),
             _SummaryRow(
-                label: 'Customer deposit (cash trapped)',
-                value: snapshot.customerDeposit),
+              label: 'Customer deposit (cash trapped)',
+              value: snapshot.customerDeposit,
+            ),
             const Divider(),
             _SummaryRow(
               label: 'Projected profit at close',
@@ -592,15 +637,25 @@ class _ClosureAssistant extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [
-                      Icon(Icons.warning_amber_rounded,
-                          color: BalanceColors.negative(context), size: 18),
-                      const SizedBox(width: 6),
-                      Text('Heads up before archiving',
-                          style: TextStyle(
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: BalanceColors.negative(context),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Heads up before archiving',
+                            style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: BalanceColors.negative(context))),
-                    ]),
+                              color: BalanceColors.negative(context),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 4),
                     for (final w in warnings)
                       Padding(
@@ -644,7 +699,10 @@ class _SummaryRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label),
+          Expanded(
+            child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 8),
           Text(fmtSignedMoney(value), style: style),
         ],
       ),
@@ -675,9 +733,16 @@ class _Row extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label),
-          Text(suffix == '%' ? '${value.toStringAsFixed(2)} %' : fmtSignedMoney(value),
-              style: style),
+          Expanded(
+            child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            suffix == '%'
+                ? '${value.toStringAsFixed(2)} %'
+                : fmtSignedMoney(value),
+            style: style,
+          ),
         ],
       ),
     );

@@ -37,9 +37,9 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
           IconButton(
             tooltip: _showArchived ? 'Show active' : 'Show archived',
             icon: Icon(
-                _showArchived ? Icons.unarchive : Icons.archive_outlined),
-            onPressed: () =>
-                setState(() => _showArchived = !_showArchived),
+              _showArchived ? Icons.unarchive : Icons.archive_outlined,
+            ),
+            onPressed: () => setState(() => _showArchived = !_showArchived),
           ),
         ],
       ),
@@ -60,18 +60,24 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.local_shipping,
-                        size: 56, color: Colors.grey),
+                    const Icon(
+                      Icons.local_shipping,
+                      size: 56,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(height: 12),
                     Text(
-                        _showArchived
-                            ? 'No archived suppliers'
-                            : 'No suppliers yet',
-                        style: Theme.of(context).textTheme.titleMedium),
+                      _showArchived
+                          ? 'No archived suppliers'
+                          : 'No suppliers yet',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     if (!_showArchived) ...[
                       const SizedBox(height: 4),
-                      const Text('Tap "New Supplier" to add one.',
-                          textAlign: TextAlign.center),
+                      const Text(
+                        'Tap "New Supplier" to add one.',
+                        textAlign: TextAlign.center,
+                      ),
                     ],
                   ],
                 ),
@@ -87,25 +93,26 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
               return Card(
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: p.archived
-                        ? Colors.brown.shade100
-                        : null,
+                    backgroundColor: p.archived ? Colors.brown.shade100 : null,
                     child: Icon(
-                      p.archived
-                          ? Icons.archive
-                          : Icons.local_shipping,
+                      p.archived ? Icons.archive : Icons.local_shipping,
                       color: p.archived ? Colors.brown.shade800 : null,
                     ),
                   ),
-                  title: Text(p.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        decoration:
-                            p.archived ? TextDecoration.lineThrough : null,
-                      )),
+                  title: Text(
+                    p.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      decoration: p.archived
+                          ? TextDecoration.lineThrough
+                          : null,
+                    ),
+                  ),
                   subtitle: _subtitle(p),
-                  trailing: Text(fmtDate(p.createdAt),
-                      style: Theme.of(context).textTheme.bodySmall),
+                  trailing: Text(
+                    fmtDate(p.createdAt),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                   onTap: () => _showSupplierActions(context, ref, p),
                 ),
               );
@@ -123,7 +130,11 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
     if (p.taxStatus != null) lines.add('Tax: ${p.taxStatus}');
     if (p.archived) lines.add('ARCHIVED');
     if (lines.isEmpty) return null;
-    return Text(lines.join(' · '), maxLines: 2, overflow: TextOverflow.ellipsis);
+    return Text(
+      lines.join(' · '),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
   }
 
   void _showSupplierActions(BuildContext context, WidgetRef ref, Party p) {
@@ -146,7 +157,8 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
                 leading: const Icon(Icons.archive_outlined),
                 title: const Text('Archive'),
                 subtitle: const Text(
-                    'Allowed only when the supplier ledger nets to zero — no money owed in either direction'),
+                  'Allowed only when the supplier ledger nets to zero — no money owed in either direction',
+                ),
                 onTap: () async {
                   final messenger = ScaffoldMessenger.of(context);
                   final repo = await ref.read(entityRepoProvider.future);
@@ -160,11 +172,14 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
                     final direction = amt > 0
                         ? 'You still owe them ${fmtMoney(amt)}'
                         : 'They still owe you ${fmtMoney(-amt)}';
-                    messenger.showSnackBar(SnackBar(
-                      content: Text(
-                          'Cannot archive ${p.name} — $direction. Settle the supplier ledger first.'),
-                      duration: const Duration(seconds: 6),
-                    ));
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Cannot archive ${p.name} — $direction. Settle the supplier ledger first.',
+                        ),
+                        duration: const Duration(seconds: 6),
+                      ),
+                    );
                   }
                 },
               ),
@@ -185,13 +200,15 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
     );
   }
 
-  void _showSupplierForm(BuildContext context, WidgetRef ref,
-      {Party? existing}) {
+  void _showSupplierForm(
+    BuildContext context,
+    WidgetRef ref, {
+    Party? existing,
+  }) {
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
     final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
     final taxCtrl = TextEditingController(text: existing?.taxStatus ?? '');
-    final bankCtrl =
-        TextEditingController(text: existing?.bankDetails ?? '');
+    final bankCtrl = TextEditingController(text: existing?.bankDetails ?? '');
     SupplierCategory? category = existing?.category;
 
     showModalBottomSheet<void>(
@@ -210,8 +227,10 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(existing == null ? 'New Supplier' : 'Edit Supplier',
-                    style: Theme.of(ctx).textTheme.titleLarge),
+                Text(
+                  existing == null ? 'New Supplier' : 'Edit Supplier',
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: nameCtrl,
@@ -222,32 +241,47 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: phoneCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Phone (optional)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Phone (optional)',
+                  ),
                   keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<SupplierCategory>(
-                  initialValue: category,
-                  decoration:
-                      const InputDecoration(labelText: 'Category (optional)'),
-                  items: SupplierCategory.values
-                      .map((c) =>
-                          DropdownMenuItem(value: c, child: Text(c.label)))
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Category (optional)',
+                    style: Theme.of(ctx).textTheme.labelLarge,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // SegmentedButton, not a dropdown: the popup mis-positions
+                // inside a scrollable bottom sheet. emptySelectionAllowed keeps
+                // the field genuinely optional (no category picked yet).
+                SegmentedButton<SupplierCategory>(
+                  segments: SupplierCategory.values
+                      .map((c) => ButtonSegment(value: c, label: Text(c.label)))
                       .toList(),
-                  onChanged: (v) => setSheetState(() => category = v),
+                  selected: category == null ? {} : {category!},
+                  emptySelectionAllowed: true,
+                  showSelectedIcon: false,
+                  onSelectionChanged: (s) => setSheetState(
+                    () => category = s.isEmpty ? null : s.first,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: taxCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'Tax status (optional)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Tax status (optional)',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: bankCtrl,
                   decoration: const InputDecoration(
-                      labelText: 'Bank details (optional)'),
+                    labelText: 'Bank details (optional)',
+                  ),
                   maxLines: 2,
                 ),
                 const SizedBox(height: 20),
@@ -277,8 +311,7 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
                     bumpLedger(ref);
                     if (sheetCtx.mounted) Navigator.pop(sheetCtx);
                   },
-                  child:
-                      Text(existing == null ? 'Create' : 'Save'),
+                  child: Text(existing == null ? 'Create' : 'Save'),
                 ),
                 const SizedBox(height: 12),
               ],

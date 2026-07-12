@@ -51,8 +51,7 @@ class DashboardScreen extends ConsumerWidget {
         child: FloatingActionButton.extended(
           onPressed: () => Navigator.push(
             context,
-            MaterialPageRoute(
-                builder: (_) => const TransactionPickerScreen()),
+            MaterialPageRoute(builder: (_) => const TransactionPickerScreen()),
           ),
           icon: const Icon(Icons.add),
           label: const Text('New Transaction'),
@@ -61,16 +60,20 @@ class DashboardScreen extends ConsumerWidget {
       body: RefreshIndicator(
         onRefresh: () async {
           bumpLedger(ref);
-          await ref.read(syncServiceFutureProvider.future).then(
-                (s) => s.syncNow(),
-              );
+          await ref
+              .read(syncServiceFutureProvider.future)
+              .then((s) => s.syncNow());
         },
         child: ListView(
           // Extra bottom padding so the last card can scroll above
           // the floating pill nav + raised FAB instead of being
           // hidden behind them.
           padding: const EdgeInsets.fromLTRB(
-              12, 12, 12, 12 + kPillNavReservedHeight + 72),
+            12,
+            12,
+            12,
+            12 + kPillNavReservedHeight + 72,
+          ),
           children: [
             // ── Treasury overview ─────────────────────────────────────────
             AsyncView(
@@ -100,16 +103,18 @@ class DashboardScreen extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: _StatTile(
-                            label: 'Payables',
-                            value: s.payables,
-                            positive: false),
+                          label: 'Payables',
+                          value: s.payables,
+                          positive: false,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: _StatTile(
-                            label: 'Receivables',
-                            value: s.totalReceivables,
-                            positive: true),
+                          label: 'Receivables',
+                          value: s.totalReceivables,
+                          positive: true,
+                        ),
                       ),
                     ],
                   ),
@@ -122,18 +127,27 @@ class DashboardScreen extends ConsumerWidget {
                     Card(
                       color: Colors.orange.shade700.withValues(alpha: 0.10),
                       child: ListTile(
-                        leading: Icon(Icons.savings_outlined,
-                            color: Colors.orange.shade800),
-                        title: Text('Customer Deposits (owed back)',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: Colors.orange.shade800)),
+                        leading: Icon(
+                          Icons.savings_outlined,
+                          color: Colors.orange.shade800,
+                        ),
+                        title: Text(
+                          'Customer Deposits (owed back)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.orange.shade800,
+                          ),
+                        ),
                         subtitle: const Text(
-                            'Money received from customers that hasn’t yet been earned through cost-incurred work.'),
-                        trailing: Text(fmtMoney(s.customerDeposits),
-                            style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: Colors.orange.shade800)),
+                          'Money received from customers that hasn’t yet been earned through cost-incurred work.',
+                        ),
+                        trailing: Text(
+                          fmtMoney(s.customerDeposits),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Colors.orange.shade800,
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -144,16 +158,20 @@ class DashboardScreen extends ConsumerWidget {
                     Row(
                       children: [
                         Expanded(
-                            child: _StatTile(
-                                label: 'Counter Recv',
-                                value: s.counterReceivables,
-                                positive: true)),
+                          child: _StatTile(
+                            label: 'Counter Recv',
+                            value: s.counterReceivables,
+                            positive: true,
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
-                            child: _StatTile(
-                                label: 'Counter Pay',
-                                value: s.counterPayables,
-                                positive: false)),
+                          child: _StatTile(
+                            label: 'Counter Pay',
+                            value: s.counterPayables,
+                            positive: false,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -185,13 +203,16 @@ class DashboardScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Recent Activity',
-                    style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  'Recent Activity',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 TextButton(
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const TransactionHistoryScreen()),
+                      builder: (_) => const TransactionHistoryScreen(),
+                    ),
                   ),
                   child: const Text('See all'),
                 ),
@@ -204,7 +225,8 @@ class DashboardScreen extends ConsumerWidget {
                   return const Padding(
                     padding: EdgeInsets.all(24),
                     child: Center(
-                        child: Text('No transactions yet — tap + to start.')),
+                      child: Text('No transactions yet — tap + to start.'),
+                    ),
                   );
                 }
                 final seen = <String>{};
@@ -225,9 +247,11 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                         trailing: e.synced == 0
                             ? const Icon(Icons.sync, size: 16)
-                            : Icon(Icons.cloud_done,
+                            : Icon(
+                                Icons.cloud_done,
                                 size: 16,
-                                color: BalanceColors.positive(context)),
+                                color: BalanceColors.positive(context),
+                              ),
                       ),
                     );
                   }).toList(),
@@ -258,10 +282,11 @@ class _ProjectsAtRiskCard extends StatelessWidget {
         : Colors.orange.shade800;
 
     return Card(
-      color: (overCount > 0
-              ? BalanceColors.negative(context)
-              : Colors.orange.shade700)
-          .withValues(alpha: 0.10),
+      color:
+          (overCount > 0
+                  ? BalanceColors.negative(context)
+                  : Colors.orange.shade700)
+              .withValues(alpha: 0.10),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -270,19 +295,22 @@ class _ProjectsAtRiskCard extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                    overCount > 0
-                        ? Icons.error_outline
-                        : Icons.warning_amber_outlined,
-                    color: headlineColor),
+                  overCount > 0
+                      ? Icons.error_outline
+                      : Icons.warning_amber_outlined,
+                  color: headlineColor,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     overCount > 0
                         ? 'Projects at risk — $overCount over budget'
-                            '${warnCount > 0 ? ', $warnCount approaching' : ''}'
+                              '${warnCount > 0 ? ', $warnCount approaching' : ''}'
                         : '$warnCount project(s) approaching budget',
                     style: TextStyle(
-                        fontWeight: FontWeight.w700, color: headlineColor),
+                      fontWeight: FontWeight.w700,
+                      color: headlineColor,
+                    ),
                   ),
                 ),
               ],
@@ -294,21 +322,24 @@ class _ProjectsAtRiskCard extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(r.projectName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13)),
+                      child: Text(
+                        r.projectName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13),
+                      ),
                     ),
                     Text(
                       r.isOverBudget
                           ? 'over by ${fmtMoney(r.costsToDate - r.budget)}'
                           : '${r.pctConsumed.toStringAsFixed(0)}% used',
                       style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: r.isOverBudget
-                              ? BalanceColors.negative(context)
-                              : Colors.orange.shade800),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: r.isOverBudget
+                            ? BalanceColors.negative(context)
+                            : Colors.orange.shade800,
+                      ),
                     ),
                   ],
                 ),
@@ -316,8 +347,10 @@ class _ProjectsAtRiskCard extends StatelessWidget {
             if (risks.length > 4)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
-                child: Text('+ ${risks.length - 4} more',
-                    style: Theme.of(context).textTheme.bodySmall),
+                child: Text(
+                  '+ ${risks.length - 4} more',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
           ],
         ),
@@ -379,20 +412,31 @@ class _CashRunwayCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Cash Runway',
-                      style: TextStyle(
-                          color: fg,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5)),
-                  Text(daysText,
-                      style: TextStyle(
-                          color: fg,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          height: 1.1)),
-                  Text(status,
-                      style: TextStyle(color: fg.withValues(alpha: 0.85), fontSize: 12)),
+                  Text(
+                    'Cash Runway',
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  Text(
+                    daysText,
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      height: 1.1,
+                    ),
+                  ),
+                  Text(
+                    status,
+                    style: TextStyle(
+                      color: fg.withValues(alpha: 0.85),
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -400,12 +444,21 @@ class _CashRunwayCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('Avg daily burn',
-                      style: TextStyle(
-                          color: fg.withValues(alpha: 0.8), fontSize: 10)),
-                  Text(fmtMoney(runway.avgDailyExpense),
-                      style: TextStyle(
-                          color: fg, fontSize: 13, fontWeight: FontWeight.w700)),
+                  Text(
+                    'Avg daily burn',
+                    style: TextStyle(
+                      color: fg.withValues(alpha: 0.8),
+                      fontSize: 10,
+                    ),
+                  ),
+                  Text(
+                    fmtMoney(runway.avgDailyExpense),
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ),
           ],
@@ -437,15 +490,24 @@ class _DailySpendCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('7-Day Spending',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700)),
-                Text(fmtMoney(totalSpend),
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: BalanceColors.negative(context))),
+                Expanded(
+                  child: Text(
+                    '7-Day Spending',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  fmtMoney(totalSpend),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: BalanceColors.negative(context),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -468,7 +530,8 @@ class _DailySpendCard extends StatelessWidget {
                               : Theme.of(context).colorScheme.primary,
                           width: 22,
                           borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(3)),
+                            top: Radius.circular(3),
+                          ),
                         ),
                       ],
                     );
@@ -495,11 +558,14 @@ class _DailySpendCard extends StatelessWidget {
                       ),
                     ),
                     leftTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
                     topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
                     rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
                   ),
                   borderData: FlBorderData(show: false),
                   gridData: const FlGridData(show: false),
@@ -507,8 +573,10 @@ class _DailySpendCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            Text('Material + Labour costs only',
-                style: Theme.of(context).textTheme.bodySmall),
+            Text(
+              'Material + Labour costs only',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ],
         ),
       ),
@@ -551,11 +619,12 @@ class _TreasuryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Treasury Overview',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(color: scheme.onPrimaryContainer)),
+            Text(
+              'Treasury Overview',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: scheme.onPrimaryContainer,
+              ),
+            ),
             const SizedBox(height: 12),
             // Three derived metrics in one row. Per-account balances (Cash +
             // each bank) live in the Wallets & Banks grid below; their sum is
@@ -563,19 +632,22 @@ class _TreasuryCard extends StatelessWidget {
             Row(
               children: [
                 _TreasuryCell(
-                    label: 'Net Liquidity',
-                    value: netLiquidity,
-                    onContainer: true),
+                  label: 'Net Liquidity',
+                  value: netLiquidity,
+                  onContainer: true,
+                ),
                 const SizedBox(width: 8),
                 _TreasuryCell(
-                    label: 'Net Position',
-                    value: netPosition,
-                    onContainer: true),
+                  label: 'Net Position',
+                  value: netPosition,
+                  onContainer: true,
+                ),
                 const SizedBox(width: 8),
                 _TreasuryCell(
-                    label: 'Net Worth',
-                    value: netWorth,
-                    onContainer: true),
+                  label: 'Net Worth',
+                  value: netWorth,
+                  onContainer: true,
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -584,9 +656,11 @@ class _TreasuryCard extends StatelessWidget {
             // Profit Illusion insight row
             Row(
               children: [
-                Icon(Icons.info_outline,
-                    size: 13,
-                    color: scheme.onPrimaryContainer.withValues(alpha: 0.7)),
+                Icon(
+                  Icons.info_outline,
+                  size: 13,
+                  color: scheme.onPrimaryContainer.withValues(alpha: 0.7),
+                ),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
@@ -594,7 +668,8 @@ class _TreasuryCard extends StatelessWidget {
                         ? '${fmtMoney(deferredLiability)} of cash covers costs & payables — real profit is ${fmtMoney(netProfit)}'
                         : 'Net Liquidity = Liquid Cash − Supplier Payables (actual spendable).',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onPrimaryContainer.withValues(alpha: 0.85)),
+                      color: scheme.onPrimaryContainer.withValues(alpha: 0.85),
+                    ),
                   ),
                 ),
               ],
@@ -607,10 +682,11 @@ class _TreasuryCard extends StatelessWidget {
 }
 
 class _TreasuryCell extends StatelessWidget {
-  const _TreasuryCell(
-      {required this.label,
-      required this.value,
-      this.onContainer = false});
+  const _TreasuryCell({
+    required this.label,
+    required this.value,
+    this.onContainer = false,
+  });
   final String label;
   final double value;
   final bool onContainer;
@@ -623,15 +699,26 @@ class _TreasuryCell extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: onContainer
-                      ? scheme.onPrimaryContainer
-                      : scheme.onSurface)),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: onContainer ? scheme.onPrimaryContainer : scheme.onSurface,
+            ),
+          ),
           const SizedBox(height: 2),
-          Text(fmtSignedMoney(value),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              fmtSignedMoney(value),
+              maxLines: 1,
               style: TextStyle(
-                  fontWeight: FontWeight.w700, fontSize: 14, color: color)),
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                color: color,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -674,8 +761,10 @@ class _WalletGrid extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Wallets & Banks',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Wallets & Banks',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             GridView.count(
               crossAxisCount: 2,
@@ -726,23 +815,38 @@ class _WalletTile extends StatelessWidget {
                   Icon(icon, size: 16, color: scheme.onSurfaceVariant),
                   const SizedBox(width: 4),
                   Expanded(
-                    child: Text(name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w600)),
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                   if (onTap != null)
-                    Icon(Icons.chevron_right,
-                        size: 14, color: scheme.onSurfaceVariant),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 14,
+                      color: scheme.onSurfaceVariant,
+                    ),
                 ],
               ),
               const SizedBox(height: 4),
-              Text(fmtMoney(balance),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  fmtMoney(balance),
+                  maxLines: 1,
                   style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: color)),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -752,8 +856,11 @@ class _WalletTile extends StatelessWidget {
 }
 
 class _StatTile extends StatelessWidget {
-  const _StatTile(
-      {required this.label, required this.value, required this.positive});
+  const _StatTile({
+    required this.label,
+    required this.value,
+    required this.positive,
+  });
   final String label;
   final double value;
   final bool positive;
@@ -771,9 +878,13 @@ class _StatTile extends StatelessWidget {
           children: [
             Text(label, style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 4),
-            Text(fmtMoney(value),
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700, color: color)),
+            Text(
+              fmtMoney(value),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
           ],
         ),
       ),
@@ -792,24 +903,28 @@ class _SyncIndicator extends ConsumerWidget {
 
   Future<void> _sync(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(const SnackBar(
-      content: Text('Syncing with Supabase…'),
-      duration: Duration(seconds: 1),
-    ));
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Syncing with Supabase…'),
+        duration: Duration(seconds: 1),
+      ),
+    );
     final svc = await ref.read(syncServiceFutureProvider.future);
     // force: true so a tap still syncs even when the background toggle is off.
     await svc.syncNow(force: true);
     final s = svc.currentStatus;
     if (!context.mounted) return;
-    messenger.showSnackBar(SnackBar(
-      content: Text(switch (s.state) {
-        SyncState.idle => 'Synced ✓',
-        SyncState.offline => 'Offline — will sync when back online',
-        SyncState.error => 'Sync failed: ${s.message ?? 'unknown error'}',
-        _ => 'Sync finished',
-      }),
-      duration: const Duration(seconds: 3),
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(switch (s.state) {
+          SyncState.idle => 'Synced ✓',
+          SyncState.offline => 'Offline — will sync when back online',
+          SyncState.error => 'Sync failed: ${s.message ?? 'unknown error'}',
+          _ => 'Sync finished',
+        }),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -868,9 +983,7 @@ class _OverdueFollowUpsTile extends ConsumerWidget {
           color: hasOverdue ? scheme.errorContainer : null,
           child: ListTile(
             leading: Icon(
-              hasOverdue
-                  ? Icons.warning_amber_rounded
-                  : Icons.pending_actions,
+              hasOverdue ? Icons.warning_amber_rounded : Icons.pending_actions,
               color: hasOverdue
                   ? BalanceColors.negative(context)
                   : scheme.primary,

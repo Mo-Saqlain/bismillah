@@ -81,6 +81,7 @@ class EntityRepository {
   Future<void> updateProjectFields(
     String id, {
     String? name,
+    ProjectModel? model,
     String? clientName,
     String? siteAddress,
     double? budget,
@@ -93,6 +94,11 @@ class EntityRepository {
   }) async {
     final updates = <String, Object?>{};
     if (name != null) updates['name'] = name.trim();
+    // Model is switchable post-creation (With-Material <-> Labour-Rate).
+    // Recognition is fully derived from the current `model` value at read
+    // time (incomeFigures / the archive gates), so a flip re-derives P&L
+    // with no stored state to migrate. The switch itself is audited below.
+    if (model != null) updates['model'] = model.db;
     if (clientName != null) {
       updates['client_name'] = clientName.trim().isEmpty ? null : clientName.trim();
     }
@@ -122,6 +128,33 @@ class EntityRepository {
       updates['completion_percent'] = completionPercent.clamp(0, 100);
     }
     if (updates.isEmpty) return;
+
+    // A model switch is a material reclassification worth auditing; log it
+    // like a supplier edit. Ordinary field edits (name, budget, and the
+    // frequent completion-slider bumps via updateProjectCompletion) stay
+    // unlogged so they don't flood the Activity Log.
+    final before = model == null ? null : await project(id);
+    if (before != null && before.model != model) {
+      final dev = await _deviceId();
+      final now = DateTime.now().toUtc();
+      await _db.transaction((txn) async {
+        await txn
+            .update('projects', updates, where: 'id = ?', whereArgs: [id]);
+        await txn.insert(
+            'change_log',
+            ChangeLog(
+              id: _uuid.v4(),
+              entityType: 'project',
+              entityId: id,
+              action: ChangeAction.edit,
+              originalData: jsonEncode(before.toMap()),
+              newData: jsonEncode(updates),
+              deviceId: dev,
+              timestamp: now,
+            ).toMap());
+      });
+      return;
+    }
     await _db.update('projects', updates, where: 'id = ?', whereArgs: [id]);
   }
 

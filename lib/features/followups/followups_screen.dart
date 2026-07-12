@@ -10,6 +10,17 @@ import '../../data/models/project.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
 
+/// Display label for the follow-up's optional project field. Null-safe: a
+/// preset id whose project is no longer in the active list falls back to
+/// "None" rather than throwing.
+String _projectLabel(List<Project> projects, String? id) {
+  if (id == null) return '— None —';
+  for (final p in projects) {
+    if (p.id == id) return p.name;
+  }
+  return '— None —';
+}
+
 /// Customer recovery / payment-promise tracker. Forward-looking notes that
 /// say "Asif sahab promised to clear Rs 200k by next Thursday." Resolves
 /// into a ledger entry — or gets cancelled — but in itself isn't an
@@ -33,14 +44,13 @@ class _FollowUpsScreenState extends ConsumerState<FollowUpsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title:
-            Text(_showArchived ? 'Resolved Follow-ups' : 'Recovery Follow-ups'),
+        title: Text(
+          _showArchived ? 'Resolved Follow-ups' : 'Recovery Follow-ups',
+        ),
         actions: [
           IconButton(
             tooltip: _showArchived ? 'Show pending' : 'Show resolved',
-            icon: Icon(_showArchived
-                ? Icons.pending_actions
-                : Icons.history),
+            icon: Icon(_showArchived ? Icons.pending_actions : Icons.history),
             onPressed: () => setState(() => _showArchived = !_showArchived),
           ),
         ],
@@ -105,12 +115,16 @@ class _FollowUpsScreenState extends ConsumerState<FollowUpsScreen> {
     );
   }
 
-  Future<void> _openEditor(BuildContext context, WidgetRef ref,
-      {FollowUp? existing}) async {
+  Future<void> _openEditor(
+    BuildContext context,
+    WidgetRef ref, {
+    FollowUp? existing,
+  }) async {
     final titleCtrl = TextEditingController(text: existing?.title ?? '');
     final noteCtrl = TextEditingController(text: existing?.note ?? '');
-    final amountCtrl =
-        TextEditingController(text: moneyInputText(existing?.amountEstimate));
+    final amountCtrl = TextEditingController(
+      text: moneyInputText(existing?.amountEstimate),
+    );
     DateTime? expected = existing?.expectedDate;
     FollowUpPriority priority = existing?.priority ?? FollowUpPriority.medium;
     String? projectId = existing?.projectId;
@@ -134,30 +148,65 @@ class _FollowUpsScreenState extends ConsumerState<FollowUpsScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(existing == null ? 'New follow-up' : 'Edit follow-up',
-                    style: Theme.of(ctx).textTheme.titleLarge),
+                Text(
+                  existing == null ? 'New follow-up' : 'Edit follow-up',
+                  style: Theme.of(ctx).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: titleCtrl,
                   autofocus: true,
                   decoration: const InputDecoration(
                     labelText: 'Title *',
-                    helperText:
-                        'e.g. "Asif sahab to clear Rs 200k of Site A"',
+                    helperText: 'e.g. "Asif sahab to clear Rs 200k of Site A"',
                   ),
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String?>(
-                  initialValue: projectId,
-                  decoration: const InputDecoration(
-                      labelText: 'Project (optional)'),
-                  items: [
-                    const DropdownMenuItem(
-                        value: null, child: Text('— None —')),
-                    for (final p in projects)
-                      DropdownMenuItem(value: p.id, child: Text(p.name)),
-                  ],
-                  onChanged: (v) => setSheetState(() => projectId = v),
+                // Tap-to-pick (opens a nested sheet) rather than a dropdown:
+                // a dropdown's popup mis-positions inside a scrollable bottom
+                // sheet, and this scales to any number of projects.
+                InkWell(
+                  onTap: () async {
+                    final picked = await showModalBottomSheet<String>(
+                      context: ctx,
+                      isScrollControlled: true,
+                      builder: (pickCtx) => SafeArea(
+                        child: ListView(
+                          shrinkWrap: true,
+                          children: [
+                            ListTile(
+                              title: const Text('— None —'),
+                              trailing: projectId == null
+                                  ? const Icon(Icons.check)
+                                  : null,
+                              onTap: () => Navigator.pop(pickCtx, ''),
+                            ),
+                            for (final p in projects)
+                              ListTile(
+                                title: Text(p.name),
+                                trailing: projectId == p.id
+                                    ? const Icon(Icons.check)
+                                    : null,
+                                onTap: () => Navigator.pop(pickCtx, p.id),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                    // null = dismissed (no change); '' = None; else project id.
+                    if (picked != null) {
+                      setSheetState(
+                        () => projectId = picked.isEmpty ? null : picked,
+                      );
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Project (optional)',
+                      suffixIcon: Icon(Icons.arrow_drop_down),
+                    ),
+                    child: Text(_projectLabel(projects, projectId)),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -170,10 +219,10 @@ class _FollowUpsScreenState extends ConsumerState<FollowUpsScreen> {
                           prefixText: 'Rs ',
                         ),
                         keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
+                          decimal: true,
+                        ),
                         inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                              RegExp(r'[0-9.,]')),
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                           const ThousandsSeparatorInputFormatter(),
                         ],
                       ),
@@ -185,10 +234,8 @@ class _FollowUpsScreenState extends ConsumerState<FollowUpsScreen> {
                           final now = DateTime.now();
                           final picked = await showDatePicker(
                             context: ctx,
-                            firstDate:
-                                now.subtract(const Duration(days: 365)),
-                            lastDate:
-                                now.add(const Duration(days: 365 * 3)),
+                            firstDate: now.subtract(const Duration(days: 365)),
+                            lastDate: now.add(const Duration(days: 365 * 3)),
                             initialDate: expected ?? now,
                           );
                           if (picked != null) {
@@ -210,15 +257,22 @@ class _FollowUpsScreenState extends ConsumerState<FollowUpsScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<FollowUpPriority>(
-                  initialValue: priority,
-                  decoration: const InputDecoration(labelText: 'Priority'),
-                  items: FollowUpPriority.values
-                      .map((p) =>
-                          DropdownMenuItem(value: p, child: Text(p.label)))
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Priority',
+                    style: Theme.of(ctx).textTheme.labelLarge,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                SegmentedButton<FollowUpPriority>(
+                  segments: FollowUpPriority.values
+                      .map((p) => ButtonSegment(value: p, label: Text(p.label)))
                       .toList(),
-                  onChanged: (v) =>
-                      setSheetState(() => priority = v ?? priority),
+                  selected: {priority},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (s) =>
+                      setSheetState(() => priority = s.first),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -299,10 +353,7 @@ class _FollowUpTile extends StatelessWidget {
     return Card(
       color: overdue ? scheme.errorContainer : null,
       child: ListTile(
-        leading: _PriorityBadge(
-          priority: followUp.priority,
-          overdue: overdue,
-        ),
+        leading: _PriorityBadge(priority: followUp.priority, overdue: overdue),
         title: Text(
           followUp.title,
           style: TextStyle(
@@ -314,37 +365,45 @@ class _FollowUpTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (projectName != null)
-              Text('Project: $projectName',
-                  style: const TextStyle(fontSize: 12)),
+              Text(
+                'Project: $projectName',
+                style: const TextStyle(fontSize: 12),
+              ),
             if (followUp.amountEstimate != null)
-              Text('Amount: ${fmtMoney(followUp.amountEstimate!)}',
-                  style: const TextStyle(fontSize: 12)),
+              Text(
+                'Amount: ${fmtMoney(followUp.amountEstimate!)}',
+                style: const TextStyle(fontSize: 12),
+              ),
             if (followUp.expectedDate != null)
               Text(
                 'Expected: ${fmtDate(followUp.expectedDate!)}'
                 '${overdue ? "  — OVERDUE" : ""}',
                 style: TextStyle(
                   fontSize: 12,
-                  color: overdue
-                      ? BalanceColors.negative(context)
-                      : null,
+                  color: overdue ? BalanceColors.negative(context) : null,
                   fontWeight: overdue ? FontWeight.w700 : null,
                 ),
               ),
             if (followUp.note != null && followUp.note!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(followUp.note!,
-                    style: const TextStyle(fontSize: 12)),
+                child: Text(
+                  followUp.note!,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
             if (followUp.status == FollowUpStatus.resolved &&
                 followUp.resolvedAt != null)
-              Text('Resolved ${fmtDate(followUp.resolvedAt!)}',
-                  style: const TextStyle(fontSize: 12)),
+              Text(
+                'Resolved ${fmtDate(followUp.resolvedAt!)}',
+                style: const TextStyle(fontSize: 12),
+              ),
             if (followUp.status == FollowUpStatus.cancelled &&
                 followUp.resolvedAt != null)
-              Text('Cancelled ${fmtDate(followUp.resolvedAt!)}',
-                  style: const TextStyle(fontSize: 12)),
+              Text(
+                'Cancelled ${fmtDate(followUp.resolvedAt!)}',
+                style: const TextStyle(fontSize: 12),
+              ),
           ],
         ),
         isThreeLine: true,
@@ -352,7 +411,9 @@ class _FollowUpTile extends StatelessWidget {
           itemBuilder: (_) => [
             if (isPending)
               const PopupMenuItem(
-                  value: 'resolve', child: Text('Mark resolved')),
+                value: 'resolve',
+                child: Text('Mark resolved'),
+              ),
             if (isPending)
               const PopupMenuItem(value: 'cancel', child: Text('Cancel')),
             if (!isPending)
@@ -393,13 +454,15 @@ class _PriorityBadge extends StatelessWidget {
     return CircleAvatar(
       backgroundColor: color.withValues(alpha: 0.15),
       foregroundColor: color,
-      child: Icon(overdue
-          ? Icons.warning_amber_rounded
-          : switch (priority) {
-              FollowUpPriority.high => Icons.priority_high,
-              FollowUpPriority.medium => Icons.outbound,
-              FollowUpPriority.low => Icons.low_priority,
-            }),
+      child: Icon(
+        overdue
+            ? Icons.warning_amber_rounded
+            : switch (priority) {
+                FollowUpPriority.high => Icons.priority_high,
+                FollowUpPriority.medium => Icons.outbound,
+                FollowUpPriority.low => Icons.low_priority,
+              },
+      ),
     );
   }
 }
@@ -417,20 +480,24 @@ class _Empty extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(showArchived ? Icons.history : Icons.pending_actions,
-                size: 56, color: Colors.grey),
+            Icon(
+              showArchived ? Icons.history : Icons.pending_actions,
+              size: 56,
+              color: Colors.grey,
+            ),
             const SizedBox(height: 12),
             Text(
-                showArchived
-                    ? 'No resolved or cancelled follow-ups yet.'
-                    : 'No pending follow-ups.',
-                style: Theme.of(context).textTheme.titleMedium),
+              showArchived
+                  ? 'No resolved or cancelled follow-ups yet.'
+                  : 'No pending follow-ups.',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 6),
             Text(
               showArchived
                   ? 'Resolved follow-ups stay here for reference.'
                   : 'Capture verbal payment promises and chase commitments '
-                      'that haven\'t become ledger entries yet.',
+                        'that haven\'t become ledger entries yet.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),

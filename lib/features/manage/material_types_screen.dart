@@ -18,7 +18,10 @@ class MaterialTypesScreen extends ConsumerWidget {
   const MaterialTypesScreen({super.key});
 
   Future<void> _addOrEdit(
-      BuildContext context, WidgetRef ref, MaterialTypeDef? existing) async {
+    BuildContext context,
+    WidgetRef ref,
+    MaterialTypeDef? existing,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     final result = await showModalBottomSheet<MaterialTypeDef>(
       context: context,
@@ -47,31 +50,41 @@ class MaterialTypesScreen extends ConsumerWidget {
         );
       }
       bumpLedger(ref);
-      messenger.showSnackBar(SnackBar(
-          content:
-              Text(existing == null ? 'Added "${result.name}".' : 'Saved.')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            existing == null ? 'Added "${result.name}".' : 'Saved.',
+          ),
+        ),
+      );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('$e')));
     }
   }
 
   Future<void> _delete(
-      BuildContext context, WidgetRef ref, MaterialTypeDef row) async {
+    BuildContext context,
+    WidgetRef ref,
+    MaterialTypeDef row,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Delete "${row.name}"?'),
         content: const Text(
-            'This removes the option from the Buy Material dropdown. '
-            'Past purchases keep the label they were saved with.'),
+          'This removes the option from the Buy Material dropdown. '
+          'Past purchases keep the label they were saved with.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -105,7 +118,8 @@ class MaterialTypesScreen extends ConsumerWidget {
               child: Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                    'No material types yet. Tap + to add one (e.g. "Sand").'),
+                  'No material types yet. Tap + to add one (e.g. "Sand").',
+                ),
               ),
             );
           }
@@ -121,8 +135,10 @@ class MaterialTypesScreen extends ConsumerWidget {
                   leading: const CircleAvatar(
                     child: Icon(Icons.category_outlined),
                   ),
-                  title: Text(r.name,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  title: Text(
+                    r.name,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   subtitle: _SubtitleSummary(row: r),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -169,8 +185,11 @@ class _SubtitleSummary extends StatelessWidget {
       if (row.coverageRate != null) 'coverage ${row.coverageRate}',
     ];
     if (parts.isEmpty) return const Text('No measurement details');
-    return Text(parts.join(' · '),
-        maxLines: 2, overflow: TextOverflow.ellipsis);
+    return Text(
+      parts.join(' · '),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
   }
 }
 
@@ -202,8 +221,7 @@ class _MaterialTypeFormState extends State<_MaterialTypeForm> {
     final r = widget.initial;
     _name = TextEditingController(text: r?.name ?? '');
     _uom = TextEditingController(text: r?.uom ?? '');
-    _cov = TextEditingController(
-        text: r?.coverageRate?.toString() ?? '');
+    _cov = TextEditingController(text: r?.coverageRate?.toString() ?? '');
     _dimL = TextEditingController(text: r?.dims?.length?.toString() ?? '');
     _dimW = TextEditingController(text: r?.dims?.width?.toString() ?? '');
     _dimH = TextEditingController(text: r?.dims?.height?.toString() ?? '');
@@ -235,7 +253,11 @@ class _MaterialTypeFormState extends State<_MaterialTypeForm> {
       final u = _dimUnit.text.trim();
       if (l != null || w != null || h != null || u.isNotEmpty) {
         dims = MaterialDims(
-            length: l, width: w, height: h, unit: u.isEmpty ? null : u);
+          length: l,
+          width: w,
+          height: h,
+          unit: u.isEmpty ? null : u,
+        );
       }
     }
 
@@ -249,8 +271,7 @@ class _MaterialTypeFormState extends State<_MaterialTypeForm> {
         createdAt: widget.initial?.createdAt ?? DateTime.now().toUtc(),
         uomType: _uomType,
         uom: _uom.text.trim().isEmpty ? null : _uom.text.trim(),
-        coverageRate:
-            _uomType == UomType.surface ? _parseDouble(_cov) : null,
+        coverageRate: _uomType == UomType.surface ? _parseDouble(_cov) : null,
         dims: dims,
       ),
     );
@@ -273,8 +294,10 @@ class _MaterialTypeFormState extends State<_MaterialTypeForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(initial == null ? 'New Material Type' : 'Edit Material Type',
-                style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              initial == null ? 'New Material Type' : 'Edit Material Type',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: _name,
@@ -286,26 +309,49 @@ class _MaterialTypeFormState extends State<_MaterialTypeForm> {
               ),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<UomType?>(
-              initialValue: _uomType,
-              decoration: const InputDecoration(
-                labelText: 'Unit of Measurement Class',
-                helperText: 'How this material is measured',
+            // Choice chips, not a dropdown: a dropdown's popup mis-positions
+            // inside a scrollable bottom sheet, and chips wrap cleanly instead
+            // of overflowing a fixed-width segmented row.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Unit of Measurement Class',
+                style: Theme.of(context).textTheme.labelLarge,
               ),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('— None —')),
-                ...UomType.values.map((t) => DropdownMenuItem(
-                    value: t, child: Text(t.label))),
+            ),
+            const SizedBox(height: 2),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'How this material is measured',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                ChoiceChip(
+                  label: const Text('None'),
+                  selected: _uomType == null,
+                  onSelected: (_) => setState(() => _uomType = null),
+                ),
+                for (final t in UomType.values)
+                  ChoiceChip(
+                    label: Text(t.label),
+                    selected: _uomType == t,
+                    onSelected: (_) => setState(() {
+                      _uomType = t;
+                      // Picking a class suggests a default unit if the field
+                      // was blank — keeps data entry quick without overwriting
+                      // an existing custom value.
+                      if (_uom.text.trim().isEmpty) {
+                        _uom.text = t.defaultUoms.first;
+                      }
+                    }),
+                  ),
               ],
-              onChanged: (v) => setState(() {
-                _uomType = v;
-                // Picking a class suggests a default unit if the field
-                // was blank — keeps data entry quick without overwriting
-                // an existing custom value.
-                if (v != null && _uom.text.trim().isEmpty) {
-                  _uom.text = v.defaultUoms.first;
-                }
-              }),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -322,40 +368,50 @@ class _MaterialTypeFormState extends State<_MaterialTypeForm> {
               TextField(
                 controller: _cov,
                 keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true),
+                  decimal: true,
+                ),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                 ],
                 decoration: const InputDecoration(
                   labelText: 'Coverage rate',
-                  helperText:
-                      'Units required per unit of area (Surface only)',
+                  helperText: 'Units required per unit of area (Surface only)',
                 ),
               ),
             ],
             if (isDiscrete) ...[
               const SizedBox(height: 16),
-              Text('Dimensions (optional)',
-                  style: Theme.of(context).textTheme.labelLarge),
+              Text(
+                'Dimensions (optional)',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
               const SizedBox(height: 8),
-              Row(children: [
-                Expanded(child: _DimField(label: 'Length', controller: _dimL)),
-                const SizedBox(width: 8),
-                Expanded(child: _DimField(label: 'Width', controller: _dimW)),
-                const SizedBox(width: 8),
-                Expanded(child: _DimField(label: 'Height', controller: _dimH)),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 90,
-                  child: TextField(
-                    controller: _dimUnit,
-                    decoration: const InputDecoration(
-                      labelText: 'Unit',
-                      hintText: 'inch',
+              Row(
+                children: [
+                  Expanded(
+                    child: _DimField(label: 'Length', controller: _dimL),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _DimField(label: 'Width', controller: _dimW),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _DimField(label: 'Height', controller: _dimH),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 90,
+                    child: TextField(
+                      controller: _dimUnit,
+                      decoration: const InputDecoration(
+                        labelText: 'Unit',
+                        hintText: 'inch',
+                      ),
                     ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ],
             const SizedBox(height: 20),
             FilledButton(
@@ -380,9 +436,7 @@ class _DimField extends StatelessWidget {
     return TextField(
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-      ],
+      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
       decoration: InputDecoration(labelText: label),
     );
   }

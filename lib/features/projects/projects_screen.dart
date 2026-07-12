@@ -33,9 +33,10 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
         actions: [
           IconButton(
             tooltip: _showArchived ? 'Show active' : 'Show archived',
-            icon: Icon(_showArchived ? Icons.unarchive : Icons.archive_outlined),
-            onPressed: () =>
-                setState(() => _showArchived = !_showArchived),
+            icon: Icon(
+              _showArchived ? Icons.unarchive : Icons.archive_outlined,
+            ),
+            onPressed: () => setState(() => _showArchived = !_showArchived),
           ),
         ],
       ),
@@ -52,8 +53,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
           if (list.isEmpty) {
             return _Empty(
               icon: Icons.foundation,
-              title:
-                  _showArchived ? 'No archived projects' : 'No projects yet',
+              title: _showArchived ? 'No archived projects' : 'No projects yet',
               hint: _showArchived
                   ? 'Archived projects are kept for legal evidence.'
                   : 'Tap "New Project" to add your first construction site.',
@@ -71,60 +71,74 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                     backgroundColor: p.archived
                         ? Colors.brown.shade100
                         : (p.status == ProjectStatus.active
-                            ? Colors.blue.shade100
-                            : Colors.grey.shade300),
+                              ? Colors.blue.shade100
+                              : Colors.grey.shade300),
                     child: Icon(
                       p.archived
                           ? Icons.archive
                           : (p.status == ProjectStatus.active
-                              ? Icons.engineering
-                              : Icons.lock_outline),
+                                ? Icons.engineering
+                                : Icons.lock_outline),
                       color: p.archived
                           ? Colors.brown.shade800
                           : (p.status == ProjectStatus.active
-                              ? Colors.blue.shade800
-                              : Colors.grey.shade700),
+                                ? Colors.blue.shade800
+                                : Colors.grey.shade700),
                     ),
                   ),
-                  title: Text(p.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        decoration: p.archived
-                            ? TextDecoration.lineThrough
-                            : null,
-                      )),
+                  title: Text(
+                    p.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      decoration: p.archived
+                          ? TextDecoration.lineThrough
+                          : null,
+                    ),
+                  ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${p.model.label} · ${p.status.label}'
-                          '${p.archived ? ' · ARCHIVED' : ''}'),
+                      Text(
+                        '${p.model.label} · ${p.status.label}'
+                        '${p.archived ? ' · ARCHIVED' : ''}',
+                      ),
                       if (p.clientName != null)
-                        Text('Client: ${p.clientName}',
-                            style: const TextStyle(fontSize: 12)),
+                        Text(
+                          'Client: ${p.clientName}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       if (p.siteAddress != null)
-                        Text(p.siteAddress!,
-                            style: const TextStyle(fontSize: 12)),
+                        Text(
+                          p.siteAddress!,
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       if (p.budget != null)
-                        Text('Budget: ${fmtMoney(p.budget!)}',
-                            style: const TextStyle(fontSize: 12)),
+                        Text(
+                          'Budget: ${fmtMoney(p.budget!)}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       if (p.model == ProjectModel.labourRate &&
                           (p.serviceFeeType == ServiceFeeType.fixed
                               ? p.serviceFeeAmount != null
                               : p.serviceFeePercent != null))
                         Text(
-                            p.serviceFeeType == ServiceFeeType.fixed
-                                ? 'Service Fee: ${fmtMoney(p.serviceFeeAmount ?? 0)} (fixed)'
-                                : 'Service Fee: ${p.serviceFeePercent!.toStringAsFixed(2)}%',
-                            style: const TextStyle(fontSize: 12)),
+                          p.serviceFeeType == ServiceFeeType.fixed
+                              ? 'Service Fee: ${fmtMoney(p.serviceFeeAmount ?? 0)} (fixed)'
+                              : 'Service Fee: ${p.serviceFeePercent!.toStringAsFixed(2)}%',
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       if (p.whatsapp != null && p.whatsapp!.isNotEmpty)
-                        Text('WhatsApp: ${p.whatsapp}',
-                            style: const TextStyle(fontSize: 12)),
+                        Text(
+                          'WhatsApp: ${p.whatsapp}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
                     ],
                   ),
-                  isThreeLine:
-                      p.siteAddress != null || p.budget != null,
-                  trailing: Text(fmtDate(p.createdAt),
-                      style: Theme.of(context).textTheme.bodySmall),
+                  isThreeLine: p.siteAddress != null || p.budget != null,
+                  trailing: Text(
+                    fmtDate(p.createdAt),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                   onTap: () => _showProjectActions(context, ref, p),
                 ),
               );
@@ -145,13 +159,15 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
               leading: const Icon(Icons.dashboard_outlined),
               title: const Text('Open snapshot'),
               subtitle: const Text(
-                  'Budget vs spend, forecast, completion, notes, follow-ups'),
+                'Budget vs spend, forecast, completion, notes, follow-ups',
+              ),
               onTap: () {
                 Navigator.pop(sheetCtx);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => SiteSnapshotScreen(project: project)),
+                    builder: (_) => SiteSnapshotScreen(project: project),
+                  ),
                 );
               },
             ),
@@ -166,19 +182,24 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
               ),
             if (!project.archived)
               ListTile(
-                leading: Icon(project.status == ProjectStatus.active
-                    ? Icons.lock
-                    : Icons.lock_open),
-                title: Text(project.status == ProjectStatus.active
-                    ? 'Mark as Closed'
-                    : 'Reopen'),
+                leading: Icon(
+                  project.status == ProjectStatus.active
+                      ? Icons.lock
+                      : Icons.lock_open,
+                ),
+                title: Text(
+                  project.status == ProjectStatus.active
+                      ? 'Mark as Closed'
+                      : 'Reopen',
+                ),
                 onTap: () async {
                   final repo = await ref.read(entityRepoProvider.future);
                   await repo.updateProjectStatus(
-                      project.id,
-                      project.status == ProjectStatus.active
-                          ? ProjectStatus.closed
-                          : ProjectStatus.active);
+                    project.id,
+                    project.status == ProjectStatus.active
+                        ? ProjectStatus.closed
+                        : ProjectStatus.active,
+                  );
                   bumpLedger(ref);
                   if (sheetCtx.mounted) Navigator.pop(sheetCtx);
                 },
@@ -188,7 +209,8 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                 leading: const Icon(Icons.balance),
                 title: const Text('Reconcile & Archive'),
                 subtitle: const Text(
-                    'Run reconciliation check, then archive (preserves data)'),
+                  'Run reconciliation check, then archive (preserves data)',
+                ),
                 onTap: () {
                   Navigator.pop(sheetCtx);
                   Navigator.push(
@@ -216,7 +238,6 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
       ),
     );
   }
-
 }
 
 void _showProjectForm(BuildContext context, WidgetRef ref) {
@@ -248,40 +269,53 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('New Project',
-                    style: Theme.of(ctx).textTheme.titleLarge),
+                Text('New Project', style: Theme.of(ctx).textTheme.titleLarge),
                 const SizedBox(height: 16),
                 TextField(
                   controller: nameCtrl,
                   autofocus: true,
-                  decoration:
-                      const InputDecoration(labelText: 'Project name *'),
+                  decoration: const InputDecoration(
+                    labelText: 'Project name *',
+                  ),
                   textCapitalization: TextCapitalization.words,
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<ProjectModel>(
-                  initialValue: model,
-                  decoration: const InputDecoration(labelText: 'Model'),
-                  items: ProjectModel.values
-                      .map((m) =>
-                          DropdownMenuItem(value: m, child: Text(m.label)))
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Model',
+                    style: Theme.of(ctx).textTheme.labelLarge,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // SegmentedButton (not a dropdown): a two-way toggle avoids
+                // the dropdown-overlay mis-positioning inside a scrollable
+                // bottom sheet, and matches the service-fee selector below.
+                SegmentedButton<ProjectModel>(
+                  segments: ProjectModel.values
+                      .map((m) => ButtonSegment(value: m, label: Text(m.label)))
                       .toList(),
-                  onChanged: (v) => setSheetState(() => model = v ?? model),
+                  selected: {model},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (s) =>
+                      setSheetState(() => model = s.first),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: clientCtrl,
                   decoration: const InputDecoration(
-                      labelText: 'Client name (optional)',
-                      helperText:
-                          'Free text — there is no separate client/customer entity'),
+                    labelText: 'Client name (optional)',
+                    helperText:
+                        'Free text — there is no separate client/customer entity',
+                  ),
                   textCapitalization: TextCapitalization.words,
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: siteCtrl,
                   decoration: const InputDecoration(
-                      labelText: 'Site address (optional)'),
+                    labelText: 'Site address (optional)',
+                  ),
                   textCapitalization: TextCapitalization.sentences,
                 ),
                 const SizedBox(height: 12),
@@ -301,8 +335,9 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
                         ? 'Required: what the customer has agreed to pay'
                         : 'Optional planning ceiling',
                   ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                     const ThousandsSeparatorInputFormatter(),
@@ -312,7 +347,8 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
                 TextField(
                   controller: managerCtrl,
                   decoration: const InputDecoration(
-                      labelText: 'Project manager (optional)'),
+                    labelText: 'Project manager (optional)',
+                  ),
                   textCapitalization: TextCapitalization.words,
                 ),
                 const SizedBox(height: 12),
@@ -330,20 +366,24 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
                   const SizedBox(height: 16),
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Service Fee (Labour-Rate)',
-                        style: Theme.of(ctx).textTheme.labelLarge),
+                    child: Text(
+                      'Service Fee (Labour-Rate)',
+                      style: Theme.of(ctx).textTheme.labelLarge,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   SegmentedButton<ServiceFeeType>(
                     segments: const [
                       ButtonSegment(
-                          value: ServiceFeeType.percent,
-                          label: Text('Percentage'),
-                          icon: Icon(Icons.percent)),
+                        value: ServiceFeeType.percent,
+                        label: Text('Percentage'),
+                        icon: Icon(Icons.percent),
+                      ),
                       ButtonSegment(
-                          value: ServiceFeeType.fixed,
-                          label: Text('Fixed'),
-                          icon: Icon(Icons.payments_outlined)),
+                        value: ServiceFeeType.fixed,
+                        label: Text('Fixed'),
+                        icon: Icon(Icons.payments_outlined),
+                      ),
                     ],
                     selected: {feeType},
                     onSelectionChanged: (s) =>
@@ -359,7 +399,8 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
                         helperText: 'Profit = % of total project spend',
                       ),
                       keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
+                        decimal: true,
+                      ),
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                       ],
@@ -374,7 +415,8 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
                             'Flat fee earned regardless of how much is spent',
                       ),
                       keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
+                        decimal: true,
+                      ),
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                         const ThousandsSeparatorInputFormatter(),
@@ -386,20 +428,24 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
                   onPressed: () async {
                     final name = nameCtrl.text.trim();
                     if (name.isEmpty) return;
-                    final budget = double.tryParse(budgetCtrl.text.replaceAll(',', ''));
+                    final budget = double.tryParse(
+                      budgetCtrl.text.replaceAll(',', ''),
+                    );
                     // Hard validation: With-Material projects can't function
                     // accounting-wise without a contract value.
                     if (model == ProjectModel.withMaterial &&
                         (budget == null || budget <= 0)) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                        content: Text(
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(
+                          content: Text(
                             'With-Material projects need a contract value '
-                            '(budget) greater than zero.'),
-                      ));
+                            '(budget) greater than zero.',
+                          ),
+                        ),
+                      );
                       return;
                     }
-                    final repo =
-                        await ref.read(entityRepoProvider.future);
+                    final repo = await ref.read(entityRepoProvider.future);
                     await repo.createProject(
                       name: name,
                       model: model,
@@ -416,14 +462,18 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
                       whatsapp: whatsappCtrl.text.trim().isEmpty
                           ? null
                           : whatsappCtrl.text.trim(),
-                      serviceFeePercent: model == ProjectModel.labourRate &&
+                      serviceFeePercent:
+                          model == ProjectModel.labourRate &&
                               feeType == ServiceFeeType.percent
                           ? double.tryParse(serviceFeeCtrl.text)
                           : null,
                       serviceFeeType: feeType,
-                      serviceFeeAmount: model == ProjectModel.labourRate &&
+                      serviceFeeAmount:
+                          model == ProjectModel.labourRate &&
                               feeType == ServiceFeeType.fixed
-                          ? double.tryParse(feeAmountCtrl.text.replaceAll(',', ''))
+                          ? double.tryParse(
+                              feeAmountCtrl.text.replaceAll(',', ''),
+                            )
                           : null,
                     );
                     bumpLedger(ref);
@@ -444,20 +494,28 @@ void _showProjectForm(BuildContext context, WidgetRef ref) {
 /// Edit-form variant of [_showProjectForm] — prefilled from `existing` and
 /// hits [EntityRepository.updateProjectFields] instead of `createProject`.
 void _showProjectEditForm(
-    BuildContext context, WidgetRef ref, Project existing) {
+  BuildContext context,
+  WidgetRef ref,
+  Project existing,
+) {
   final nameCtrl = TextEditingController(text: existing.name);
   final clientCtrl = TextEditingController(text: existing.clientName ?? '');
   final siteCtrl = TextEditingController(text: existing.siteAddress ?? '');
-  final budgetCtrl =
-      TextEditingController(text: moneyInputText(existing.budget));
-  final managerCtrl =
-      TextEditingController(text: existing.projectManager ?? '');
+  final budgetCtrl = TextEditingController(
+    text: moneyInputText(existing.budget),
+  );
+  final managerCtrl = TextEditingController(
+    text: existing.projectManager ?? '',
+  );
   final whatsappCtrl = TextEditingController(text: existing.whatsapp ?? '');
   final serviceFeeCtrl = TextEditingController(
-      text: existing.serviceFeePercent?.toString() ?? '');
+    text: existing.serviceFeePercent?.toString() ?? '',
+  );
   final feeAmountCtrl = TextEditingController(
-      text: moneyInputText(existing.serviceFeeAmount));
+    text: moneyInputText(existing.serviceFeeAmount),
+  );
   ServiceFeeType feeType = existing.serviceFeeType;
+  ProjectModel model = existing.model;
 
   showModalBottomSheet<void>(
     context: context,
@@ -471,176 +529,288 @@ void _showProjectEditForm(
       ),
       child: StatefulBuilder(
         builder: (ctx, setSheetState) => SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Edit Project',
-                style: Theme.of(sheetCtx).textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(
-                'Model (${existing.model.label}) is fixed once a project '
-                'is created — change other fields freely.',
-                style: const TextStyle(fontSize: 12)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: nameCtrl,
-              autofocus: true,
-              decoration:
-                  const InputDecoration(labelText: 'Project name *'),
-              textCapitalization: TextCapitalization.words,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: clientCtrl,
-              decoration:
-                  const InputDecoration(labelText: 'Client name (optional)'),
-              textCapitalization: TextCapitalization.words,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: siteCtrl,
-              decoration: const InputDecoration(
-                  labelText: 'Site address (optional)'),
-              textCapitalization: TextCapitalization.sentences,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: budgetCtrl,
-              decoration: InputDecoration(
-                labelText: existing.model == ProjectModel.withMaterial
-                    ? 'Contract value (budget) *'
-                    : 'Budget (optional)',
-                prefixText: 'Rs ',
-                helperText: existing.model == ProjectModel.withMaterial
-                    ? 'Required: what the customer has agreed to pay'
-                    : 'Optional planning ceiling',
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Edit Project',
+                style: Theme.of(sheetCtx).textTheme.titleLarge,
               ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                const ThousandsSeparatorInputFormatter(),
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: managerCtrl,
-              decoration: const InputDecoration(
-                  labelText: 'Project manager (optional)'),
-              textCapitalization: TextCapitalization.words,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: whatsappCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Client WhatsApp number (optional)',
-                helperText:
-                    'Used to send a confirmation on money received from this project',
-                prefixIcon: Icon(Icons.chat_outlined),
-              ),
-              keyboardType: TextInputType.phone,
-            ),
-            if (existing.model == ProjectModel.labourRate) ...[
               const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Service Fee (Labour-Rate)',
-                    style: Theme.of(sheetCtx).textTheme.labelLarge),
-              ),
-              const SizedBox(height: 6),
-              SegmentedButton<ServiceFeeType>(
-                segments: const [
-                  ButtonSegment(
-                      value: ServiceFeeType.percent,
-                      label: Text('Percentage'),
-                      icon: Icon(Icons.percent)),
-                  ButtonSegment(
-                      value: ServiceFeeType.fixed,
-                      label: Text('Fixed'),
-                      icon: Icon(Icons.payments_outlined)),
-                ],
-                selected: {feeType},
-                onSelectionChanged: (s) =>
-                    setSheetState(() => feeType = s.first),
+              TextField(
+                controller: nameCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Project name *'),
+                textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 12),
-              if (feeType == ServiceFeeType.percent)
-                TextField(
-                  controller: serviceFeeCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Service Fee %',
-                    suffixText: '%',
-                  ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                  ],
-                )
-              else
-                TextField(
-                  controller: feeAmountCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Fixed Service Fee',
-                    prefixText: 'Rs ',
-                    helperText:
-                        'Flat fee earned regardless of how much is spent',
-                  ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                    const ThousandsSeparatorInputFormatter(),
-                  ],
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Model',
+                  style: Theme.of(sheetCtx).textTheme.labelLarge,
                 ),
+              ),
+              const SizedBox(height: 6),
+              // SegmentedButton (not a dropdown): a two-way toggle avoids the
+              // dropdown-overlay mis-positioning inside a scrollable bottom
+              // sheet, and matches the service-fee selector below.
+              SegmentedButton<ProjectModel>(
+                segments: ProjectModel.values
+                    .map((m) => ButtonSegment(value: m, label: Text(m.label)))
+                    .toList(),
+                selected: {model},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => setSheetState(() => model = s.first),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: clientCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Client name (optional)',
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: siteCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Site address (optional)',
+                ),
+                textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: budgetCtrl,
+                decoration: InputDecoration(
+                  labelText: model == ProjectModel.withMaterial
+                      ? 'Contract value (budget) *'
+                      : 'Budget (optional)',
+                  prefixText: 'Rs ',
+                  helperText: model == ProjectModel.withMaterial
+                      ? 'Required: what the customer has agreed to pay'
+                      : 'Optional planning ceiling',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                  const ThousandsSeparatorInputFormatter(),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: managerCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Project manager (optional)',
+                ),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: whatsappCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Client WhatsApp number (optional)',
+                  helperText:
+                      'Used to send a confirmation on money received from this project',
+                  prefixIcon: Icon(Icons.chat_outlined),
+                ),
+                keyboardType: TextInputType.phone,
+              ),
+              if (model == ProjectModel.labourRate) ...[
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Service Fee (Labour-Rate)',
+                    style: Theme.of(sheetCtx).textTheme.labelLarge,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                SegmentedButton<ServiceFeeType>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ServiceFeeType.percent,
+                      label: Text('Percentage'),
+                      icon: Icon(Icons.percent),
+                    ),
+                    ButtonSegment(
+                      value: ServiceFeeType.fixed,
+                      label: Text('Fixed'),
+                      icon: Icon(Icons.payments_outlined),
+                    ),
+                  ],
+                  selected: {feeType},
+                  onSelectionChanged: (s) =>
+                      setSheetState(() => feeType = s.first),
+                ),
+                const SizedBox(height: 12),
+                if (feeType == ServiceFeeType.percent)
+                  TextField(
+                    controller: serviceFeeCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Service Fee %',
+                      suffixText: '%',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    ],
+                  )
+                else
+                  TextField(
+                    controller: feeAmountCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Fixed Service Fee',
+                      prefixText: 'Rs ',
+                      helperText:
+                          'Flat fee earned regardless of how much is spent',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                      const ThousandsSeparatorInputFormatter(),
+                    ],
+                  ),
+              ],
+              const SizedBox(height: 20),
+              FilledButton(
+                onPressed: () async {
+                  final name = nameCtrl.text.trim();
+                  if (name.isEmpty) return;
+                  final budget = double.tryParse(
+                    budgetCtrl.text.replaceAll(',', ''),
+                  );
+                  if (model == ProjectModel.withMaterial &&
+                      (budget == null || budget <= 0)) {
+                    ScaffoldMessenger.of(sheetCtx).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'With-Material projects need a contract value '
+                          '(budget) greater than zero.',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  // Switching the model on a project that already has ledger
+                  // activity re-derives its P&L and can strand posted service
+                  // fees — confirm before committing.
+                  if (model != existing.model) {
+                    final ledger = await ref.read(ledgerRepoProvider.future);
+                    final snap = await ledger.projectSnapshot(existing.id);
+                    final hasActivity =
+                        snap.spent > 0.01 ||
+                        snap.received > 0.01 ||
+                        snap.serviceFeeBooked > 0.01;
+                    if (hasActivity && sheetCtx.mounted) {
+                      final ok = await _confirmModelSwitch(
+                        sheetCtx,
+                        existing.model,
+                        model,
+                        spent: snap.spent,
+                        received: snap.received,
+                        serviceFeeBooked: snap.serviceFeeBooked,
+                      );
+                      if (ok != true) return;
+                    }
+                  }
+
+                  final repo = await ref.read(entityRepoProvider.future);
+                  await repo.updateProjectFields(
+                    existing.id,
+                    name: name,
+                    model: model,
+                    clientName: clientCtrl.text,
+                    siteAddress: siteCtrl.text,
+                    budget: budget,
+                    projectManager: managerCtrl.text,
+                    whatsapp: whatsappCtrl.text,
+                    serviceFeePercent:
+                        model == ProjectModel.labourRate &&
+                            feeType == ServiceFeeType.percent
+                        ? double.tryParse(serviceFeeCtrl.text)
+                        : null,
+                    serviceFeeType: model == ProjectModel.labourRate
+                        ? feeType
+                        : null,
+                    serviceFeeAmount:
+                        model == ProjectModel.labourRate &&
+                            feeType == ServiceFeeType.fixed
+                        ? double.tryParse(
+                            feeAmountCtrl.text.replaceAll(',', ''),
+                          )
+                        : null,
+                  );
+                  bumpLedger(ref);
+                  if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                },
+                child: const Text('Save'),
+              ),
+              const SizedBox(height: 12),
             ],
-            const SizedBox(height: 20),
-            FilledButton(
-              onPressed: () async {
-                final name = nameCtrl.text.trim();
-                if (name.isEmpty) return;
-                final budget = double.tryParse(budgetCtrl.text.replaceAll(',', ''));
-                if (existing.model == ProjectModel.withMaterial &&
-                    (budget == null || budget <= 0)) {
-                  ScaffoldMessenger.of(sheetCtx).showSnackBar(const SnackBar(
-                    content: Text(
-                        'With-Material projects need a contract value '
-                        '(budget) greater than zero.'),
-                  ));
-                  return;
-                }
-                final repo = await ref.read(entityRepoProvider.future);
-                await repo.updateProjectFields(
-                  existing.id,
-                  name: name,
-                  clientName: clientCtrl.text,
-                  siteAddress: siteCtrl.text,
-                  budget: budget,
-                  projectManager: managerCtrl.text,
-                  whatsapp: whatsappCtrl.text,
-                  serviceFeePercent: existing.model == ProjectModel.labourRate &&
-                          feeType == ServiceFeeType.percent
-                      ? double.tryParse(serviceFeeCtrl.text)
-                      : null,
-                  serviceFeeType: existing.model == ProjectModel.labourRate
-                      ? feeType
-                      : null,
-                  serviceFeeAmount: existing.model == ProjectModel.labourRate &&
-                          feeType == ServiceFeeType.fixed
-                      ? double.tryParse(feeAmountCtrl.text)
-                      : null,
-                );
-                bumpLedger(ref);
-                if (sheetCtx.mounted) Navigator.pop(sheetCtx);
-              },
-              child: const Text('Save'),
-            ),
-            const SizedBox(height: 12),
-          ],
+          ),
         ),
       ),
+    ),
+  );
+}
+
+/// Confirmation shown when the operator flips a project's model and the
+/// project already has ledger activity. Explains that P&L is recomputed
+/// under the new model and — when leaving Labour-Rate — that any posted
+/// service fee stays in the books. Returns true to proceed.
+Future<bool?> _confirmModelSwitch(
+  BuildContext context,
+  ProjectModel from,
+  ProjectModel to, {
+  required double spent,
+  required double received,
+  required double serviceFeeBooked,
+}) {
+  final strandedFee =
+      from == ProjectModel.labourRate && serviceFeeBooked > 0.01;
+  return showDialog<bool>(
+    context: context,
+    builder: (dCtx) => AlertDialog(
+      title: Text('Switch to ${to.label}?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'This project already has activity (${fmtMoney(spent)} spent, '
+            '${fmtMoney(received)} received). Profit and revenue will be '
+            'recomputed under the ${to.label} model.',
+          ),
+          if (strandedFee) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Note: ${fmtMoney(serviceFeeBooked)} of service fee already '
+              'posted will remain in the ledger and keep counting as '
+              'income. Reverse those entries manually if that is not '
+              'intended.',
+            ),
+          ],
+        ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dCtx, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dCtx, true),
+          child: const Text('Switch anyway'),
+        ),
+      ],
     ),
   );
 }
@@ -663,9 +833,11 @@ class _Empty extends StatelessWidget {
             const SizedBox(height: 12),
             Text(title, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 6),
-            Text(hint,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall),
+            Text(
+              hint,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
           ],
         ),
       ),

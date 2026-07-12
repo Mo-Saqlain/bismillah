@@ -56,8 +56,7 @@ class _ProjectBvaScreenState extends ConsumerState<ProjectBvaScreen> {
           final categories = <(String, double)>[
             for (final e in bva.materialByType.entries)
               ('Material · ${e.key}', e.value),
-            if (bva.otherMaterial > 0)
-              ('Material · Other', bva.otherMaterial),
+            if (bva.otherMaterial > 0) ('Material · Other', bva.otherMaterial),
             ('Labour', bva.labour),
           ];
 
@@ -75,36 +74,45 @@ class _ProjectBvaScreenState extends ConsumerState<ProjectBvaScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Budget'),
-                            Text(fmtMoney(budget),
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700)),
-                          ]),
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Budget'),
+                          Text(
+                            fmtMoney(budget),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 4),
                       Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text('Actual Spend'),
-                            Text(fmtMoney(spend),
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: overrun
-                                        ? BalanceColors.negative(context)
-                                        : null)),
-                          ]),
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Actual Spend'),
+                          Text(
+                            fmtMoney(spend),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: overrun
+                                  ? BalanceColors.negative(context)
+                                  : null,
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 4),
                       Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(remaining >= 0 ? 'Remaining' : 'Over Budget'),
-                            Text(fmtSignedMoney(remaining),
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: BalanceColors.signed(
-                                        context, remaining))),
-                          ]),
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(remaining >= 0 ? 'Remaining' : 'Over Budget'),
+                          Text(
+                            fmtSignedMoney(remaining),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: BalanceColors.signed(context, remaining),
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       LinearProgressIndicator(
                         value: budget == 0
@@ -116,9 +124,11 @@ class _ProjectBvaScreenState extends ConsumerState<ProjectBvaScreen> {
                             : BalanceColors.positive(context),
                       ),
                       const SizedBox(height: 4),
-                      Text(budget == 0
-                          ? 'No budget set on this project.'
-                          : '${pct.toStringAsFixed(1)} % of budget consumed'),
+                      Text(
+                        budget == 0
+                            ? 'No budget set on this project.'
+                            : '${pct.toStringAsFixed(1)} % of budget consumed',
+                      ),
                     ],
                   ),
                 ),
@@ -154,27 +164,34 @@ class _ProjectBvaScreenState extends ConsumerState<ProjectBvaScreen> {
                       SegmentedButton<_SpendPeriod>(
                         segments: const [
                           ButtonSegment(
-                              value: _SpendPeriod.day, label: Text('Day')),
+                            value: _SpendPeriod.day,
+                            label: Text('Day'),
+                          ),
                           ButtonSegment(
-                              value: _SpendPeriod.week, label: Text('Week')),
+                            value: _SpendPeriod.week,
+                            label: Text('Week'),
+                          ),
                           ButtonSegment(
-                              value: _SpendPeriod.month, label: Text('Month')),
+                            value: _SpendPeriod.month,
+                            label: Text('Month'),
+                          ),
                         ],
                         selected: {_period},
                         onSelectionChanged: (s) =>
                             setState(() => _period = s.first),
                         style: const ButtonStyle(
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       dailyAsync.when(
-                        loading: () =>
-                            const SizedBox(height: 120, child: Center(child: CircularProgressIndicator())),
-                        error: (e, _) => Text('Error: $e'),
-                        data: (daily) => _SpendBarChart(
-                          daily: daily,
-                          period: _period,
+                        loading: () => const SizedBox(
+                          height: 120,
+                          child: Center(child: CircularProgressIndicator()),
                         ),
+                        error: (e, _) => Text('Error: $e'),
+                        data: (daily) =>
+                            _SpendBarChart(daily: daily, period: _period),
                       ),
                     ],
                   ),
@@ -195,13 +212,19 @@ class _ProjectBvaScreenState extends ConsumerState<ProjectBvaScreen> {
                     ],
                     rows: [
                       for (final c in categories)
-                        DataRow(cells: [
-                          DataCell(Text(c.$1)),
-                          DataCell(Text(fmtMoney(c.$2))),
-                          DataCell(Text(spend == 0
-                              ? '—'
-                              : '${(c.$2 / spend * 100).toStringAsFixed(1)} %')),
-                        ]),
+                        DataRow(
+                          cells: [
+                            DataCell(Text(c.$1)),
+                            DataCell(Text(fmtMoney(c.$2))),
+                            DataCell(
+                              Text(
+                                spend == 0
+                                    ? '—'
+                                    : '${(c.$2 / spend * 100).toStringAsFixed(1)} %',
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                 ),
@@ -271,11 +294,12 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
-      child: Text(text,
-          style: Theme.of(context)
-              .textTheme
-              .titleSmall
-              ?.copyWith(fontWeight: FontWeight.w700)),
+      child: Text(
+        text,
+        style: Theme.of(
+          context,
+        ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+      ),
     );
   }
 }
@@ -303,7 +327,10 @@ class _BudgetPieChart extends StatelessWidget {
           title: '${(material / total * 100).toStringAsFixed(0)}%',
           radius: 55,
           titleStyle: const TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
       if (labour > 0)
         PieChartSectionData(
@@ -312,7 +339,10 @@ class _BudgetPieChart extends StatelessWidget {
           title: '${(labour / total * 100).toStringAsFixed(0)}%',
           radius: 55,
           titleStyle: const TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
       if (remaining > 0)
         PieChartSectionData(
@@ -321,7 +351,10 @@ class _BudgetPieChart extends StatelessWidget {
           title: '${(remaining / total * 100).toStringAsFixed(0)}%',
           radius: 55,
           titleStyle: const TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
     ];
 
@@ -332,25 +365,38 @@ class _BudgetPieChart extends StatelessWidget {
           children: [
             SizedBox(
               height: 160,
-              child: PieChart(PieChartData(
-                sections: sections,
-                centerSpaceRadius: 30,
-                sectionsSpace: 2,
-              )),
+              child: PieChart(
+                PieChartData(
+                  sections: sections,
+                  centerSpaceRadius: 30,
+                  sectionsSpace: 2,
+                ),
+              ),
             ),
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            Wrap(
+              spacing: 12,
+              runSpacing: 6,
+              alignment: WrapAlignment.center,
               children: [
                 if (material > 0)
-                  _Legend(color: Colors.orange.shade600,
-                      label: 'Material', value: fmtMoney(material)),
+                  _Legend(
+                    color: Colors.orange.shade600,
+                    label: 'Material',
+                    value: fmtMoney(material),
+                  ),
                 if (labour > 0)
-                  _Legend(color: Colors.blue.shade600,
-                      label: 'Labour', value: fmtMoney(labour)),
+                  _Legend(
+                    color: Colors.blue.shade600,
+                    label: 'Labour',
+                    value: fmtMoney(labour),
+                  ),
                 if (remaining > 0)
-                  _Legend(color: Colors.green.shade500,
-                      label: 'Remaining', value: fmtMoney(remaining)),
+                  _Legend(
+                    color: Colors.green.shade500,
+                    label: 'Remaining',
+                    value: fmtMoney(remaining),
+                  ),
               ],
             ),
           ],
@@ -393,7 +439,10 @@ class _MaterialPieChart extends StatelessWidget {
         title: '$pct%',
         radius: 55,
         titleStyle: const TextStyle(
-            fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
       );
     }).toList();
 
@@ -404,11 +453,13 @@ class _MaterialPieChart extends StatelessWidget {
           children: [
             SizedBox(
               height: 160,
-              child: PieChart(PieChartData(
-                sections: sections,
-                centerSpaceRadius: 30,
-                sectionsSpace: 2,
-              )),
+              child: PieChart(
+                PieChartData(
+                  sections: sections,
+                  centerSpaceRadius: 30,
+                  sectionsSpace: 2,
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -418,9 +469,10 @@ class _MaterialPieChart extends StatelessWidget {
               children: entries.asMap().entries.map((entry) {
                 final color = _palette[entry.key % _palette.length];
                 return _Legend(
-                    color: color,
-                    label: entry.value.$1,
-                    value: fmtMoney(entry.value.$2));
+                  color: color,
+                  label: entry.value.$1,
+                  value: fmtMoney(entry.value.$2),
+                );
               }).toList(),
             ),
           ],
@@ -473,22 +525,20 @@ class _SpendBarChart extends StatelessWidget {
                       toY: e.value.$2,
                       color: Theme.of(context).colorScheme.primary,
                       width: _barWidth(bars.length),
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(3)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(3),
+                      ),
                     ),
                   ],
                 );
               }).toList(),
               titlesData: FlTitlesData(
                 bottomTitles: AxisTitles(
-                  axisNameWidget: Text(
-                    switch (period) {
-                      _SpendPeriod.day => 'Date',
-                      _SpendPeriod.week => 'Week starting',
-                      _SpendPeriod.month => 'Month',
-                    },
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
+                  axisNameWidget: Text(switch (period) {
+                    _SpendPeriod.day => 'Date',
+                    _SpendPeriod.week => 'Week starting',
+                    _SpendPeriod.month => 'Month',
+                  }, style: Theme.of(context).textTheme.labelSmall),
                   axisNameSize: 16,
                   sideTitles: SideTitles(
                     showTitles: true,
@@ -502,15 +552,19 @@ class _SpendBarChart extends StatelessWidget {
                       if (i % step != 0) return const SizedBox.shrink();
                       return Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text(bars[i].$1,
-                            style: const TextStyle(fontSize: 9)),
+                        child: Text(
+                          bars[i].$1,
+                          style: const TextStyle(fontSize: 9),
+                        ),
                       );
                     },
                   ),
                 ),
                 leftTitles: AxisTitles(
-                  axisNameWidget: Text('Spend',
-                      style: Theme.of(context).textTheme.labelSmall),
+                  axisNameWidget: Text(
+                    'Spend',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
                   axisNameSize: 14,
                   sideTitles: SideTitles(
                     showTitles: true,
@@ -527,9 +581,11 @@ class _SpendBarChart extends StatelessWidget {
                   ),
                 ),
                 topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false)),
+                  sideTitles: SideTitles(showTitles: false),
+                ),
                 rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false)),
+                  sideTitles: SideTitles(showTitles: false),
+                ),
               ),
               borderData: FlBorderData(show: false),
               gridData: FlGridData(
@@ -537,10 +593,9 @@ class _SpendBarChart extends StatelessWidget {
                 drawVerticalLine: false,
                 horizontalInterval: _yAxisInterval(maxY),
                 getDrawingHorizontalLine: (_) => FlLine(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outlineVariant
-                      .withValues(alpha: 0.4),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outlineVariant.withValues(alpha: 0.4),
                   strokeWidth: 1,
                 ),
               ),
@@ -550,9 +605,10 @@ class _SpendBarChart extends StatelessWidget {
                   getTooltipItem: (group, _, rod, _) => BarTooltipItem(
                     '${bars[group.x].$1}\n${fmtMoney(rod.toY)}',
                     const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
                   ),
                 ),
               ),
@@ -586,10 +642,10 @@ class _SpendBarChart extends StatelessWidget {
     final nice = norm < 1.5
         ? 1.0
         : norm < 3
-            ? 2.0
-            : norm < 7
-                ? 5.0
-                : 10.0;
+        ? 2.0
+        : norm < 7
+        ? 5.0
+        : 10.0;
     return nice * mag;
   }
 
@@ -606,7 +662,11 @@ class _SpendBarChart extends StatelessWidget {
 }
 
 class _Legend extends StatelessWidget {
-  const _Legend({required this.color, required this.label, required this.value});
+  const _Legend({
+    required this.color,
+    required this.label,
+    required this.value,
+  });
   final Color color;
   final String label;
   final String value;
@@ -617,20 +677,27 @@ class _Legend extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-            width: 10,
-            height: 10,
-            decoration:
-                BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
         const SizedBox(width: 4),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            ),
           ],
         ),
       ],
@@ -643,7 +710,9 @@ class _Legend extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 List<(String label, double amount)> _aggregate(
-    List<DailySpend> data, _SpendPeriod period) {
+  List<DailySpend> data,
+  _SpendPeriod period,
+) {
   if (data.isEmpty) return [];
 
   if (period == _SpendPeriod.day) {
@@ -660,26 +729,40 @@ List<(String label, double amount)> _aggregate(
     final weekLabel = <String, String>{};
     for (final d in data) {
       final monday = d.date.subtract(Duration(days: d.date.weekday - 1));
-      final key = '${monday.year}-${monday.month.toString().padLeft(2, '0')}'
+      final key =
+          '${monday.year}-${monday.month.toString().padLeft(2, '0')}'
           '-${monday.day.toString().padLeft(2, '0')}';
       byWeek[key] = (byWeek[key] ?? 0) + d.amount;
       weekLabel[key] = '${monday.day}/${monday.month}';
     }
-    final sorted = byWeek.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    final sorted = byWeek.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
     return sorted.map((e) => (weekLabel[e.key]!, e.value)).toList();
   }
 
   // Month
   const monthAbbr = [
-    '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    '',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final byMonth = <String, double>{};
   for (final d in data) {
     final key = '${d.date.year}-${d.date.month.toString().padLeft(2, '0')}';
     byMonth[key] = (byMonth[key] ?? 0) + d.amount;
   }
-  final sorted = byMonth.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+  final sorted = byMonth.entries.toList()
+    ..sort((a, b) => a.key.compareTo(b.key));
   return sorted.map((e) {
     final parts = e.key.split('-');
     final m = int.parse(parts[1]);
@@ -691,8 +774,10 @@ List<(String label, double amount)> _aggregate(
 // Providers
 // ─────────────────────────────────────────────────────────────────────────────
 
-final _bvaProvider =
-    FutureProvider.family<ProjectBva, String>((ref, projectId) async {
+final _bvaProvider = FutureProvider.family<ProjectBva, String>((
+  ref,
+  projectId,
+) async {
   ref.watch(ledgerVersionProvider);
   final ledger = await ref.watch(ledgerRepoProvider.future);
   return ledger.projectBva(projectId);
@@ -700,7 +785,7 @@ final _bvaProvider =
 
 final _projectDailySpendProvider =
     FutureProvider.family<List<DailySpend>, String>((ref, projectId) async {
-  ref.watch(ledgerVersionProvider);
-  final ledger = await ref.watch(ledgerRepoProvider.future);
-  return ledger.projectDailySpend(projectId);
-});
+      ref.watch(ledgerVersionProvider);
+      final ledger = await ref.watch(ledgerRepoProvider.future);
+      return ledger.projectDailySpend(projectId);
+    });

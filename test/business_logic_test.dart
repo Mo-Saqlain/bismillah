@@ -59,6 +59,66 @@ void main() {
   //  PoC revenue recognition — incomeFigures()
   // ───────────────────────────────────────────────────────────────────────
 
+  // ───────────────────────────────────────────────────────────────────────
+  //  Project model switch (With-Material <-> Labour-Rate, post-creation)
+  // ───────────────────────────────────────────────────────────────────────
+
+  group('Project model switch', () {
+    test('WM→LR re-derives recognition and persists the new model', () async {
+      final sId = await _supplier('Steelco');
+      final pId = await _project('Flex Site', budget: 1000000);
+      await _ledgerRepo.postReceiveFromProject(
+          amount: 1000000, projectId: pId, receivedInto: Accounts.cash);
+      await _ledgerRepo.postMaterialBuy(
+          amount: 400000, projectId: pId, supplierId: sId);
+
+      // As With-Material: cost-recovery recognizes revenue up to costs.
+      final before = await _ledgerRepo.incomeFigures();
+      expect(before.wmRevenue, 400000);
+      expect(before.wmDeposit, 600000);
+      expect(before.lrDeposit, 0);
+
+      await _entityRepo.updateProjectFields(pId,
+          model: ProjectModel.labourRate);
+      expect((await _entityRepo.project(pId))!.model, ProjectModel.labourRate);
+
+      // Recognition re-derives with zero stored state: the WM cost-recovery
+      // revenue disappears and the customer money becomes an LR deposit.
+      final after = await _ledgerRepo.incomeFigures();
+      expect(after.wmRevenue, 0);
+      expect(after.wmDeposit, 0);
+      expect(after.lrDeposit, 600000);
+      expect(after.matCosts, 400000,
+          reason: 'costs are untouched by a reclassification');
+    });
+
+    test('A model switch is audited in the change log', () async {
+      final pId = await _project('Audited Site', budget: 500000);
+      final createRows = await _db
+          .query('change_log', where: 'entity_id = ?', whereArgs: [pId]);
+      expect(createRows.length, 1, reason: 'createProject logs one row');
+
+      await _entityRepo.updateProjectFields(pId,
+          model: ProjectModel.labourRate);
+
+      final afterRows = await _db
+          .query('change_log', where: 'entity_id = ?', whereArgs: [pId]);
+      expect(afterRows.length, 2, reason: 'the model switch adds an edit row');
+    });
+
+    test('Ordinary field edits are NOT logged (no activity-log spam)',
+        () async {
+      final pId = await _project('Quiet Site', budget: 500000);
+      await _entityRepo.updateProjectCompletion(pId, 60);
+      await _entityRepo.updateProjectFields(pId, name: 'Quiet Site Renamed');
+
+      final rows = await _db
+          .query('change_log', where: 'entity_id = ?', whereArgs: [pId]);
+      expect(rows.length, 1,
+          reason: 'only the create row — field edits stay unlogged');
+    });
+  });
+
   group('PoC revenue recognition', () {
     test('Active WM: 0 costs + 1M received → 0 revenue, 1M deposit', () async {
       final pId = await _project('Site A', budget: 1500000);

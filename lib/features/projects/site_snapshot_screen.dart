@@ -35,8 +35,7 @@ class SiteSnapshotScreen extends ConsumerWidget {
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) =>
-                      ProjectReconciliationScreen(project: project),
+                  builder: (_) => ProjectReconciliationScreen(project: project),
                 ),
               ),
             ),
@@ -90,25 +89,29 @@ class _RiskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final (Color bg, Color fg, String label, IconData icon) =
-        switch (snapshot.riskBand) {
+    final (
+      Color bg,
+      Color fg,
+      String label,
+      IconData icon,
+    ) = switch (snapshot.riskBand) {
       'red' => (
         scheme.errorContainer,
         BalanceColors.negative(context),
         'On track for a loss',
-        Icons.warning_amber_rounded
+        Icons.warning_amber_rounded,
       ),
       'amber' => (
         Colors.amber.shade100,
         Colors.amber.shade900,
         'Approaching budget',
-        Icons.flag_circle
+        Icons.flag_circle,
       ),
       _ => (
         scheme.primaryContainer,
         BalanceColors.positive(context),
         'On budget',
-        Icons.check_circle
+        Icons.check_circle,
       ),
     };
 
@@ -124,11 +127,13 @@ class _RiskCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: fg,
-                          )),
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: fg,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     project.model.label +
@@ -144,12 +149,11 @@ class _RiskCard extends StatelessWidget {
                 Text(
                   '${snapshot.pctOfBudgetConsumed.toStringAsFixed(0)}%',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: fg,
-                      ),
+                    fontWeight: FontWeight.w700,
+                    color: fg,
+                  ),
                 ),
-                Text('of budget',
-                    style: Theme.of(context).textTheme.bodySmall),
+                Text('of budget', style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
           ],
@@ -175,17 +179,20 @@ class _BigFiguresGrid extends StatelessWidget {
       crossAxisSpacing: 8,
       children: [
         _BigFigure(
-            label: 'Budget',
-            value: fmtMoney(snapshot.budget),
-            icon: Icons.flag_outlined),
+          label: 'Budget',
+          value: fmtMoney(snapshot.budget),
+          icon: Icons.flag_outlined,
+        ),
         _BigFigure(
-            label: 'Received',
-            value: fmtMoney(snapshot.received),
-            icon: Icons.south_west),
+          label: 'Received',
+          value: fmtMoney(snapshot.received),
+          icon: Icons.south_west,
+        ),
         _BigFigure(
-            label: 'Spent',
-            value: fmtMoney(snapshot.spent),
-            icon: Icons.north_east),
+          label: 'Spent',
+          value: fmtMoney(snapshot.spent),
+          icon: Icons.north_east,
+        ),
         _BigFigure(
           label: 'Profit so far',
           value: fmtSignedMoney(snapshot.realizedProfit),
@@ -224,28 +231,41 @@ class _BigFigure extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon,
-                    size: 16,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.55)),
+                Icon(
+                  icon,
+                  size: 16,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.55),
+                ),
                 const SizedBox(width: 6),
-                Text(label,
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.65),
-                        )),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.65),
+                    ),
+                  ),
+                ),
               ],
             ),
             const Spacer(),
-            Text(value,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                maxLines: 1,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                    )),
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -275,8 +295,8 @@ class _CompletionCardState extends ConsumerState<_CompletionCard> {
 
   @override
   Widget build(BuildContext context) {
-    final value =
-        (_pending ?? widget.project.completionPercent.toDouble()).clamp(0, 100);
+    final value = (_pending ?? widget.project.completionPercent.toDouble())
+        .clamp(0, 100);
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -286,15 +306,19 @@ class _CompletionCardState extends ConsumerState<_CompletionCard> {
             Row(
               children: [
                 Expanded(
-                  child: Text('Manual completion',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          )),
+                  child: Text(
+                    'Manual completion',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-                Text('${value.toStringAsFixed(0)}%',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        )),
+                Text(
+                  '${value.toStringAsFixed(0)}%',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
               ],
             ),
             Slider(
@@ -337,17 +361,21 @@ class _ForecastCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Projected outcome',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    )),
+            Text(
+              'Projected outcome',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
             _Row(
-                label: 'Cost still to incur',
-                value: snapshot.projectedRemainingCost),
+              label: 'Cost still to incur',
+              value: snapshot.projectedRemainingCost,
+            ),
             _Row(
-                label: 'Receivable still expected',
-                value: snapshot.projectedReceivable),
+              label: 'Receivable still expected',
+              value: snapshot.projectedReceivable,
+            ),
             _Row(
               label: snapshot.projectedCashGap >= 0
                   ? 'Cash gap to bridge'
@@ -367,10 +395,10 @@ class _ForecastCard extends StatelessWidget {
               child: Text(
                 snapshot.completionPercent == 0
                     ? 'No completion% set — forecast falls back to '
-                        'budget headroom. Slide the completion % above for a '
-                        'better estimate.'
+                          'budget headroom. Slide the completion % above for a '
+                          'better estimate.'
                     : 'Forecast based on linear extrapolation from your '
-                        '${snapshot.completionPercent}% completion estimate.',
+                          '${snapshot.completionPercent}% completion estimate.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -393,10 +421,12 @@ class _OutstandingCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Outstanding positions',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    )),
+            Text(
+              'Outstanding positions',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 8),
             _Row(
               label: 'Supplier payables open',
@@ -407,10 +437,7 @@ class _OutstandingCard extends StatelessWidget {
               label: 'Customer deposit (cash trapped)',
               value: snapshot.customerDeposit,
             ),
-            _Row(
-              label: 'Service fee booked',
-              value: snapshot.serviceFeeBooked,
-            ),
+            _Row(label: 'Service fee booked', value: snapshot.serviceFeeBooked),
           ],
         ),
       ),
@@ -448,7 +475,7 @@ class _ProjectFollowUpsTile extends ConsumerWidget {
             title: Text(
               overdueCount > 0
                   ? '${mine.length} follow-up${mine.length == 1 ? "" : "s"} — '
-                      '$overdueCount overdue'
+                        '$overdueCount overdue'
                   : '${mine.length} pending follow-up${mine.length == 1 ? "" : "s"}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
@@ -491,7 +518,10 @@ class _Row extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label),
+          Expanded(
+            child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 8),
           Text(fmtSignedMoney(value), style: style),
         ],
       ),

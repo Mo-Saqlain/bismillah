@@ -50,11 +50,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       if (Platform.isAndroid) {
         final dirs = await getExternalStorageDirectories(
-            type: StorageDirectory.documents);
+          type: StorageDirectory.documents,
+        );
         if (dirs != null && dirs.isNotEmpty) base = dirs.first;
       }
       base ??= await getApplicationDocumentsDirectory();
-    } catch (_) {/* fall through */}
+    } catch (_) {
+      /* fall through */
+    }
     if (base == null) return;
     if (!mounted) return;
     setState(() => _backupFolder = p.join(base!.path, 'Bismillah_Backups'));
@@ -74,16 +77,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final picked = result.files.single;
       final path = picked.path;
       if (path == null) {
-        messenger.showSnackBar(const SnackBar(
+        messenger.showSnackBar(
+          const SnackBar(
             content: Text(
-                'Could not read file path — try copying the backup to internal storage first.')));
+              'Could not read file path — try copying the backup to internal storage first.',
+            ),
+          ),
+        );
         return;
       }
       final lower = picked.name.toLowerCase();
       if (!lower.endsWith('.db')) {
-        messenger.showSnackBar(SnackBar(
+        messenger.showSnackBar(
+          SnackBar(
             content: Text(
-                'Not a .db backup file: ${picked.name}. Pick a file ending in .db.')));
+              'Not a .db backup file: ${picked.name}. Pick a file ending in .db.',
+            ),
+          ),
+        );
         return;
       }
 
@@ -91,8 +102,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          icon: Icon(Icons.warning_amber,
-              color: Theme.of(ctx).colorScheme.error, size: 36),
+          icon: Icon(
+            Icons.warning_amber,
+            color: Theme.of(ctx).colorScheme.error,
+            size: 36,
+          ),
           title: const Text('Replace your current database?'),
           content: SingleChildScrollView(
             child: Column(
@@ -102,65 +116,80 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Text('Importing "${picked.name}" will:'),
                 const SizedBox(height: 12),
                 const _BulletLine(
-                    'WIPE every transaction, project, supplier, bank, '
-                    'wallet, material type and setting that is currently '
-                    'in this app.'),
+                  'WIPE every transaction, project, supplier, bank, '
+                  'wallet, material type and setting that is currently '
+                  'in this app.',
+                ),
                 const _BulletLine(
-                    'REPLACE all of it with whatever the picked .db file '
-                    'contains. The import is a full overwrite, not a '
-                    'merge — anything not in the picked file is gone.'),
+                  'REPLACE all of it with whatever the picked .db file '
+                  'contains. The import is a full overwrite, not a '
+                  'merge — anything not in the picked file is gone.',
+                ),
                 const _BulletLine(
-                    'Save your existing database as a "<dbfile>.before_import" '
-                    'snapshot first, so you can use Settings → "Undo last '
-                    'import" to roll back if you change your mind.'),
+                  'Save your existing database as a "<dbfile>.before_import" '
+                  'snapshot first, so you can use Settings → "Undo last '
+                  'import" to roll back if you change your mind.',
+                ),
                 const _BulletLine(
-                    'Require an app restart afterwards to load the new data.'),
+                  'Require an app restart afterwards to load the new data.',
+                ),
                 const SizedBox(height: 12),
                 Text(
                   'Only proceed if you trust this .db file and you have '
                   'already exported anything you might want to keep from '
                   'the current install.',
                   style: TextStyle(
-                      fontStyle: FontStyle.italic,
-                      color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+                    fontStyle: FontStyle.italic,
+                    color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
             FilledButton(
-                style: FilledButton.styleFrom(
-                    backgroundColor: Theme.of(ctx).colorScheme.error,
-                    foregroundColor: Theme.of(ctx).colorScheme.onError),
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Replace database')),
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error,
+                foregroundColor: Theme.of(ctx).colorScheme.onError,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Replace database'),
+            ),
           ],
         ),
       );
       if (confirm != true) return;
+      if (!mounted) return;
 
       setState(() => _backupBusy = true);
       final backup = await ref.read(backupServiceProvider.future);
       final err = await backup.importBackup(path);
       if (!mounted) return;
       setState(() => _backupBusy = false);
-      messenger.showSnackBar(SnackBar(
-        content: Text(err == null
-            ? 'Imported. Restart the app to load the new database.'
-            : 'Import failed: $err'),
-        duration: const Duration(seconds: 6),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            err == null
+                ? 'Imported. Restart the app to load the new database.'
+                : 'Import failed: $err',
+          ),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     } catch (e, st) {
       debugPrint('Import backup failed: $e\n$st');
       if (!mounted) return;
       setState(() => _backupBusy = false);
-      messenger.showSnackBar(SnackBar(
-        content: Text('Import error: $e'),
-        duration: const Duration(seconds: 6),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Import error: $e'),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     }
   }
 
@@ -172,11 +201,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await _refreshBackupTime();
     if (!mounted) return;
     setState(() => _backupBusy = false);
-    messenger.showSnackBar(SnackBar(
-      content: Text(ok
-          ? 'Backup written to the backup folder'
-          : 'Backup failed — check storage permissions / free space'),
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Backup written to the backup folder'
+              : 'Backup failed — check storage permissions / free space',
+        ),
+      ),
+    );
   }
 
   Future<void> _shareLatestBackup() async {
@@ -187,8 +220,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (!mounted) return;
     setState(() => _backupBusy = false);
     if (!ok) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('No backup available to share — try again')));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('No backup available to share — try again'),
+        ),
+      );
     }
   }
 
@@ -197,12 +233,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final svc = await ref.read(backupServiceProvider.future);
     final reason = await svc.testBackupFolder();
     if (!mounted) return;
-    messenger.showSnackBar(SnackBar(
-      content: Text(reason == null
-          ? 'Backup folder is writable ✓'
-          : 'Folder test failed: $reason'),
-      duration: const Duration(seconds: 5),
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          reason == null
+              ? 'Backup folder is writable ✓'
+              : 'Folder test failed: $reason',
+        ),
+        duration: const Duration(seconds: 5),
+      ),
+    );
   }
 
   Future<void> _rollbackImport() async {
@@ -212,31 +252,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Undo last import?'),
         content: const Text(
-            'Restores the database from the snapshot saved before your last import. '
-            'The current database will be saved as "<dbfile>.before_rollback" '
-            'in case you change your mind. You must restart the app afterwards.'),
+          'Restores the database from the snapshot saved before your last import. '
+          'The current database will be saved as "<dbfile>.before_rollback" '
+          'in case you change your mind. You must restart the app afterwards.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Roll back')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Roll back'),
+          ),
         ],
       ),
     );
     if (confirm != true) return;
+    if (!mounted) return;
 
     setState(() => _backupBusy = true);
     final svc = await ref.read(backupServiceProvider.future);
     final err = await svc.rollbackLastImport();
     if (!mounted) return;
     setState(() => _backupBusy = false);
-    messenger.showSnackBar(SnackBar(
-      content: Text(err ??
-          'Rolled back. Restart the app to load the previous database.'),
-      duration: const Duration(seconds: 6),
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          err ?? 'Rolled back. Restart the app to load the previous database.',
+        ),
+        duration: const Duration(seconds: 6),
+      ),
+    );
   }
 
   @override
@@ -248,7 +295,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         // Bottom padding clears the floating pill nav.
         padding: const EdgeInsets.fromLTRB(
-            12, 12, 12, 12 + kPillNavReservedHeight),
+          12,
+          12,
+          12,
+          12 + kPillNavReservedHeight,
+        ),
         children: [
           _SectionTitle('Appearance'),
           Card(
@@ -292,43 +343,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   trailing: _backupFolder == null
                       ? null
-                      : Row(mainAxisSize: MainAxisSize.min, children: [
-                          IconButton(
-                            icon: const Icon(Icons.bug_report, size: 18),
-                            tooltip: 'Test write access',
-                            onPressed: _backupBusy ? null : _testFolder,
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.copy, size: 18),
-                            tooltip: 'Copy path',
-                            onPressed: () async {
-                              final messenger = ScaffoldMessenger.of(context);
-                              await Clipboard.setData(
-                                  ClipboardData(text: _backupFolder!));
-                              messenger.showSnackBar(
-                                const SnackBar(content: Text('Path copied')),
-                              );
-                            },
-                          ),
-                        ]),
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.bug_report, size: 18),
+                              tooltip: 'Test write access',
+                              onPressed: _backupBusy ? null : _testFolder,
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.copy, size: 18),
+                              tooltip: 'Copy path',
+                              onPressed: () async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                await Clipboard.setData(
+                                  ClipboardData(text: _backupFolder!),
+                                );
+                                messenger.showSnackBar(
+                                  const SnackBar(content: Text('Path copied')),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                 ),
                 ListTile(
                   leading: const Icon(Icons.history),
                   title: const Text('Last backup'),
-                  subtitle: Text(_lastBackup == null
-                      ? 'Never'
-                      : fmtDateTime(_lastBackup!)),
+                  subtitle: Text(
+                    _lastBackup == null ? 'Never' : fmtDateTime(_lastBackup!),
+                  ),
                 ),
                 ListTile(
                   leading: const Icon(Icons.backup),
                   title: const Text('Run backup now'),
                   subtitle: const Text(
-                      'Saves to the backup folder above (survives uninstall on Android)'),
+                    'Saves to the backup folder above (survives uninstall on Android)',
+                  ),
                   trailing: _backupBusy
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2))
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Icon(Icons.chevron_right),
                   onTap: _backupBusy ? null : _runBackupNow,
                 ),
@@ -336,7 +393,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   leading: const Icon(Icons.share),
                   title: const Text('Share latest backup'),
                   subtitle: const Text(
-                      'Send the .db file via WhatsApp / Gmail / Drive'),
+                    'Send the .db file via WhatsApp / Gmail / Drive',
+                  ),
                   trailing: _backupBusy
                       ? null
                       : const Icon(Icons.chevron_right),
@@ -346,12 +404,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   leading: const Icon(Icons.upload_file),
                   title: const Text('Import backup'),
                   subtitle: const Text(
-                      'Pick a .db file and replace the current database'),
+                    'Pick a .db file and replace the current database',
+                  ),
                   trailing: _backupBusy
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2))
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Icon(Icons.chevron_right),
                   onTap: _backupBusy ? null : _importBackup,
                 ),
@@ -359,19 +419,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   leading: const Icon(Icons.list_alt),
                   title: const Text('Backup history'),
                   subtitle: const Text(
-                      'Browse, share, restore or delete past backups'),
+                    'Browse, share, restore or delete past backups',
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => const BackupsListScreen()),
+                      builder: (_) => const BackupsListScreen(),
+                    ),
                   ),
                 ),
                 ListTile(
                   leading: const Icon(Icons.undo),
                   title: const Text('Undo last import'),
                   subtitle: const Text(
-                      'Roll back to the snapshot saved before your last import'),
+                    'Roll back to the snapshot saved before your last import',
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: _backupBusy ? null : _rollbackImport,
                 ),
@@ -390,7 +453,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               leading: const Icon(Icons.fact_check),
               title: const Text('Change Log'),
               subtitle: const Text(
-                  'New entries, edits, deletes and archives. Export to CSV.'),
+                'New entries, edits, deletes and archives. Export to CSV.',
+              ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,
@@ -400,17 +464,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           Card(
             child: ListTile(
-              leading: Icon(Icons.bug_report_outlined,
-                  color: Theme.of(context).colorScheme.error),
+              leading: Icon(
+                Icons.bug_report_outlined,
+                color: Theme.of(context).colorScheme.error,
+              ),
               title: const Text('Recent Errors'),
               subtitle: const Text(
-                  'In-app log of framework, async and widget errors '
-                  'caught this session.'),
+                'In-app log of framework, async and widget errors '
+                'caught this session.',
+              ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(
-                    builder: (_) => const RecentErrorsScreen()),
+                MaterialPageRoute(builder: (_) => const RecentErrorsScreen()),
               ),
             ),
           ),
@@ -435,13 +501,14 @@ class _SectionTitle extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
-        child: Text(text,
-            style: Theme.of(context)
-                .textTheme
-                .labelLarge
-                ?.copyWith(color: Theme.of(context).colorScheme.primary)),
-      );
+    padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+    child: Text(
+      text,
+      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    ),
+  );
 }
 
 /// Bullet row used in the Import warning dialog. Pulled out so the dialog
@@ -484,9 +551,9 @@ class _ThemeOption extends StatelessWidget {
   Widget build(BuildContext context) {
     final selected = current == value;
     return ListTile(
-      leading: Icon(selected
-          ? Icons.radio_button_checked
-          : Icons.radio_button_unchecked),
+      leading: Icon(
+        selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+      ),
       title: Text(label),
       onTap: () => onSelect(value),
     );
@@ -580,16 +647,18 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
       await _load();
       final s = svc.currentStatus;
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text(switch (s.state) {
-          SyncState.idle => 'Re-pulled everything from the cloud ✓',
-          SyncState.offline => 'Offline — will re-pull when back online',
-          SyncState.error =>
-            'Re-pull failed: ${s.message ?? 'unknown error'}',
-          _ => 'Re-pull finished',
-        }),
-        duration: const Duration(seconds: 4),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(switch (s.state) {
+            SyncState.idle => 'Re-pulled everything from the cloud ✓',
+            SyncState.offline => 'Offline — will re-pull when back online',
+            SyncState.error =>
+              'Re-pull failed: ${s.message ?? 'unknown error'}',
+            _ => 'Re-pull finished',
+          }),
+          duration: const Duration(seconds: 4),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _repulling = false);
     }
@@ -616,6 +685,7 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        scrollable: true,
         icon: const Icon(Icons.fingerprint, size: 36),
         title: const Text('Set tenant ID'),
         content: Column(
@@ -623,9 +693,10 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-                'Paste the UUID copied from your other device so both '
-                'phones see the same data. Leave blank to keep the '
-                'current value.'),
+              'Paste the UUID copied from your other device so both '
+              'phones see the same data. Leave blank to keep the '
+              'current value.',
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: ctrl,
@@ -647,11 +718,13 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Save')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Save'),
+          ),
         ],
       ),
     );
@@ -665,12 +738,12 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
   }
 
   String _stateLabel(SyncState s) => switch (s) {
-        SyncState.idle => 'Idle',
-        SyncState.syncing => 'Syncing…',
-        SyncState.error => 'Error',
-        SyncState.offline => 'Offline',
-        SyncState.disabled => 'Disabled',
-      };
+    SyncState.idle => 'Idle',
+    SyncState.syncing => 'Syncing…',
+    SyncState.error => 'Error',
+    SyncState.offline => 'Offline',
+    SyncState.disabled => 'Disabled',
+  };
 
   Color? _healthColor(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -685,7 +758,9 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
 
   String _healthSubtitle() {
     final h = _health;
-    if (h == null) return 'Ping your Supabase project to confirm it is reachable';
+    if (h == null) {
+      return 'Ping your Supabase project to confirm it is reachable';
+    }
     return switch (h.state) {
       SupabaseHealthState.ok =>
         'Service reachable ✓ (${h.latency!.inMilliseconds} ms)',
@@ -706,8 +781,9 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
             secondary: const Icon(Icons.cloud_sync_outlined),
             title: const Text('Cloud sync to Supabase'),
             subtitle: const Text(
-                'Push every write to your Supabase project. Required '
-                'for second-device sync.'),
+              'Push every write to your Supabase project. Required '
+              'for second-device sync.',
+            ),
             value: _enabled ?? true,
             onChanged: _enabled == null ? null : _setEnabled,
           ),
@@ -735,14 +811,16 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
                 SyncState.disabled => Icons.cloud_outlined,
               }),
               title: Text(_stateLabel(s.state)),
-              subtitle: Text([
-                if (s.lastSyncAt != null)
-                  'Last sync: ${fmtDateTime(s.lastSyncAt!)}'
-                else
-                  'Not synced yet',
-                if (s.pending > 0) '${s.pending} pending',
-                if (s.message != null) s.message!,
-              ].join(' · ')),
+              subtitle: Text(
+                [
+                  if (s.lastSyncAt != null)
+                    'Last sync: ${fmtDateTime(s.lastSyncAt!)}'
+                  else
+                    'Not synced yet',
+                  if (s.pending > 0) '${s.pending} pending',
+                  if (s.message != null) s.message!,
+                ].join(' · '),
+              ),
             ),
           ),
           ListTile(
@@ -759,7 +837,8 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2))
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.chevron_right),
             onTap: _checking ? null : _checkService,
           ),
@@ -767,13 +846,15 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
             leading: const Icon(Icons.refresh),
             title: const Text('Sync now'),
             subtitle: const Text(
-                'Push local changes, then pull rows from other devices. '
-                'Works even when background sync is off.'),
+              'Push local changes, then pull rows from other devices. '
+              'Works even when background sync is off.',
+            ),
             trailing: _busy
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2))
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.chevron_right),
             onTap: _busy ? null : _syncNow,
           ),
@@ -781,13 +862,15 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
             leading: const Icon(Icons.analytics_outlined),
             title: const Text('Sync diagnostics'),
             subtitle: const Text(
-                'Compare row counts on this phone vs the cloud, per table — '
-                'shows exactly what is and isn\'t synced.'),
+              'Compare row counts on this phone vs the cloud, per table — '
+              'shows exactly what is and isn\'t synced.',
+            ),
             trailing: _diagBusy
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2))
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.chevron_right),
             onTap: _diagBusy ? null : _showDiagnostics,
           ),
@@ -795,14 +878,16 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
             leading: const Icon(Icons.cloud_download_outlined),
             title: const Text('Re-pull everything from cloud'),
             subtitle: const Text(
-                'Re-download every row for this tenant. Safe — never '
-                'overwrites data already on this phone. Use when the cloud '
-                'has projects/transactions this device is missing.'),
+              'Re-download every row for this tenant. Safe — never '
+              'overwrites data already on this phone. Use when the cloud '
+              'has projects/transactions this device is missing.',
+            ),
             trailing: _repulling
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2))
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.chevron_right),
             onTap: _repulling ? null : _fullRepull,
           ),
@@ -813,26 +898,28 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
               _tenantId ?? 'Generated on first sync',
               style: const TextStyle(fontSize: 12),
             ),
-            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (_tenantId != null)
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_tenantId != null)
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 18),
+                    tooltip: 'Copy',
+                    onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
+                      await Clipboard.setData(ClipboardData(text: _tenantId!));
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Tenant ID copied')),
+                      );
+                    },
+                  ),
                 IconButton(
-                  icon: const Icon(Icons.copy, size: 18),
-                  tooltip: 'Copy',
-                  onPressed: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    await Clipboard.setData(
-                        ClipboardData(text: _tenantId!));
-                    messenger.showSnackBar(
-                      const SnackBar(content: Text('Tenant ID copied')),
-                    );
-                  },
+                  icon: const Icon(Icons.edit, size: 18),
+                  tooltip: 'Set to a different tenant',
+                  onPressed: _editTenantId,
                 ),
-              IconButton(
-                icon: const Icon(Icons.edit, size: 18),
-                tooltip: 'Set to a different tenant',
-                onPressed: _editTenantId,
-              ),
-            ]),
+              ],
+            ),
           ),
         ],
       ),
@@ -849,23 +936,29 @@ class _SyncDiagnosticsDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final tenantMismatch = rows
-        .any((r) => (r.remoteTenant ?? 0) == 0 && (r.remoteAll ?? 0) > 0);
-    final missingLocally = rows
-        .any((r) => r.remoteTenant != null && r.remoteTenant! > r.local);
+    final tenantMismatch = rows.any(
+      (r) => (r.remoteTenant ?? 0) == 0 && (r.remoteAll ?? 0) > 0,
+    );
+    final missingLocally = rows.any(
+      (r) => r.remoteTenant != null && r.remoteTenant! > r.local,
+    );
 
-    Widget cell(String text,
-            {int flex = 2,
-            bool header = false,
-            TextAlign align = TextAlign.end}) =>
-        Expanded(
-          flex: flex,
-          child: Text(text,
-              textAlign: align,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: header ? FontWeight.w700 : FontWeight.w400)),
-        );
+    Widget cell(
+      String text, {
+      int flex = 2,
+      bool header = false,
+      TextAlign align = TextAlign.end,
+    }) => Expanded(
+      flex: flex,
+      child: Text(
+        text,
+        textAlign: align,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: header ? FontWeight.w700 : FontWeight.w400,
+        ),
+      ),
+    );
 
     return AlertDialog(
       title: const Text('Sync diagnostics'),
@@ -874,35 +967,39 @@ class _SyncDiagnosticsDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              cell('Table', flex: 4, header: true, align: TextAlign.start),
-              cell('Here', header: true),
-              cell('Cloud', header: true),
-              cell('All', header: true),
-            ]),
+            Row(
+              children: [
+                cell('Table', flex: 4, header: true, align: TextAlign.start),
+                cell('Here', header: true),
+                cell('Cloud', header: true),
+                cell('All', header: true),
+              ],
+            ),
             const Divider(),
             for (final r in rows)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(children: [
-                  cell(r.table, flex: 4, align: TextAlign.start),
-                  cell('${r.local}'),
-                  cell(r.remoteTenant?.toString() ?? '—'),
-                  cell(r.remoteAll?.toString() ?? '—'),
-                ]),
+                child: Row(
+                  children: [
+                    cell(r.table, flex: 4, align: TextAlign.start),
+                    cell('${r.local}'),
+                    cell(r.remoteTenant?.toString() ?? '—'),
+                    cell(r.remoteAll?.toString() ?? '—'),
+                  ],
+                ),
               ),
             const SizedBox(height: 14),
             Text(
               tenantMismatch
                   ? 'Your Supabase project holds rows under a DIFFERENT tenant '
-                      'id ("Cloud" is 0 while "All" is not). Set the shared '
-                      'Tenant ID below to match your other device, then re-pull.'
+                        'id ("Cloud" is 0 while "All" is not). Set the shared '
+                        'Tenant ID below to match your other device, then re-pull.'
                   : missingLocally
-                      ? 'The cloud has rows this phone is missing ("Cloud" > '
-                          '"Here"). Tap "Re-pull everything from cloud".'
-                      : 'This phone already has everything the cloud holds for '
-                          'your tenant. Anything not showing in a list is '
-                          'archived or deleted, not lost.',
+                  ? 'The cloud has rows this phone is missing ("Cloud" > '
+                        '"Here"). Tap "Re-pull everything from cloud".'
+                  : 'This phone already has everything the cloud holds for '
+                        'your tenant. Anything not showing in a list is '
+                        'archived or deleted, not lost.',
               style: TextStyle(fontSize: 12.5, color: scheme.onSurface),
             ),
             const SizedBox(height: 8),
