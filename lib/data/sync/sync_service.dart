@@ -189,61 +189,76 @@ class SyncService {
   /// pass it, so they still respect the toggle.
   Future<void> syncNow({bool force = false}) async {
     if (!SupabaseConfig.configured) return;
-    // The DB can be closed underneath us during a restore/restart: after
-    // `LocalDb.reinitialize()` closes it (restore_gateway) and before the
-    // `restartApp()` provider-tree rebuild lands, this — the *old* —
-    // SyncService's ticker/connectivity callback may still fire. Querying a
-    // closed DB throws `database_closed`; skip silently. The SyncService
-    // recreated after the restart owns the fresh, open DB.
+    // Fast path: the DB can be closed underneath us during a restore/restart
+    // (LocalDb.reinitialize() closes it, then restartApp() rebuilds the
+    // provider tree; the *old* SyncService's ticker may still fire in that
+    // window). Skip if it's already closed — the outer catch below handles
+    // the race where it closes mid-await.
     if (!_ledger.db.isOpen) return;
-    if (!force && !await _entities.cloudSyncEnabled()) {
-      _emit(SyncStatus(
-        state: SyncState.disabled,
-        pending: 0,
-        lastSyncAt: _last.lastSyncAt,
-        message: 'Cloud sync disabled in Settings.',
-      ));
-      return;
-    }
     if (_syncing) return;
 
-    final pending = await _countLocalPending();
-
-    final results = await Connectivity().checkConnectivity();
-    final online = results.any((r) => r != ConnectivityResult.none);
-    if (!online) {
-      _emit(SyncStatus(state: SyncState.offline, pending: pending));
-      return;
-    }
-
-    _syncing = true;
-    _emit(SyncStatus(state: SyncState.syncing, pending: pending));
     try {
-      final tenantId = await _entities.ensureTenantId();
-      final client = Supabase.instance.client;
-
-      for (final table in _kSyncTables) {
-        await _pushTable(client, table, tenantId);
+      if (!force && !await _entities.cloudSyncEnabled()) {
+        _emit(SyncStatus(
+          state: SyncState.disabled,
+          pending: 0,
+          lastSyncAt: _last.lastSyncAt,
+          message: 'Cloud sync disabled in Settings.',
+        ));
+        return;
       }
-      for (final table in _kSyncTables) {
-        await _pullTable(client, table, tenantId);
+
+      final pending = await _countLocalPending();
+
+      final results = await Connectivity().checkConnectivity();
+      final online = results.any((r) => r != ConnectivityResult.none);
+      if (!online) {
+        _emit(SyncStatus(state: SyncState.offline, pending: pending));
+        return;
       }
 
-      _emit(SyncStatus(
-        state: SyncState.idle,
-        pending: 0,
-        lastSyncAt: DateTime.now(),
-      ));
+      _syncing = true;
+      _emit(SyncStatus(state: SyncState.syncing, pending: pending));
+      try {
+        final tenantId = await _entities.ensureTenantId();
+        final client = Supabase.instance.client;
+
+        for (final table in _kSyncTables) {
+          await _pushTable(client, table, tenantId);
+        }
+        for (final table in _kSyncTables) {
+          await _pullTable(client, table, tenantId);
+        }
+
+        _emit(SyncStatus(
+          state: SyncState.idle,
+          pending: 0,
+          lastSyncAt: DateTime.now(),
+        ));
+      } finally {
+        _syncing = false;
+      }
     } catch (e) {
+      _syncing = false;
+      // A DB closed under us during a restore/restart is expected and
+      // harmless — skip silently rather than spamming the error reporter.
+      // Anything else is a real sync failure worth surfacing.
+      if (_isDatabaseClosed(e)) return;
       _emit(SyncStatus(
         state: SyncState.error,
-        pending: pending,
+        pending: _last.pending,
         message: e.toString(),
         lastSyncAt: _last.lastSyncAt,
       ));
-    } finally {
-      _syncing = false;
     }
+  }
+
+  /// A `database_closed` error means the DB was reinitialised under us during
+  /// a restore/restart — expected, not a real failure. Checks the typed flag
+  /// and the message so it's robust across sqflite versions.
+  static bool _isDatabaseClosed(Object e) {
+    if (e is DatabaseException && e.isDatabaseClosedError()) return true;
+    return e.toString().contains('database_closed');
   }
 
   /// Recovery action: clear the pull cursors, then run a full forced sync so
