@@ -119,13 +119,32 @@ extension ProjectStatusX on ProjectStatus {
           orElse: () => ProjectStatus.active);
 }
 
-enum SupplierCategory { labor, material }
+/// `both` is for a party who provides *both* labour and materials — e.g. a
+/// labour contractor who also supplies material on credit. It carries no
+/// ledger consequence (payables are scoped by `supplier_id`, never by
+/// category) and needs no schema change (`suppliers.category` is a free TEXT
+/// column locally and on Supabase); it only widens which transaction pickers
+/// the party appears in. A `null`/uncategorized supplier still appears in
+/// every picker (legacy).
+enum SupplierCategory { labor, material, both }
 
 extension SupplierCategoryX on SupplierCategory {
   String get label => switch (this) {
-        SupplierCategory.labor => 'Labor',
-        SupplierCategory.material => 'Material',
+        SupplierCategory.labor => 'Labour',
+        SupplierCategory.material => 'Materials',
+        SupplierCategory.both => 'Both',
       };
+
+  /// True when a supplier of this category should appear in the material /
+  /// supplier-pay picker. `null` category also matches — handled at the call
+  /// site so legacy rows stay visible everywhere.
+  bool get suppliesMaterial =>
+      this == SupplierCategory.material || this == SupplierCategory.both;
+
+  /// True when a supplier of this category should appear in the labour picker.
+  bool get suppliesLabour =>
+      this == SupplierCategory.labor || this == SupplierCategory.both;
+
   String get db => name;
   static SupplierCategory fromDb(String s) =>
       SupplierCategory.values.firstWhere((v) => v.name == s,

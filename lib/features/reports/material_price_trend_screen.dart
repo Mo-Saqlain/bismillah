@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/formatters.dart';
 import '../../data/repositories/ledger_repository.dart';
 import '../../providers/providers.dart';
+import '../common/searchable_dropdown.dart';
 
 /// Per-material unit-price chart, sourced from every
 /// `material_inventory.rate` recorded over the selected window.
@@ -74,19 +75,15 @@ class _MaterialPriceTrendScreenState
               const SizedBox(height: 12),
 
               // Material picker
-              DropdownButtonFormField<String>(
-                initialValue: selected,
-                decoration: const InputDecoration(
-                  labelText: 'Material',
-                  border: OutlineInputBorder(),
-                ),
-                items: byMaterial.keys
-                    .map((k) => DropdownMenuItem(
-                          value: k,
-                          child:
-                              Text('$k  (${byMaterial[k]!.length} entries)'),
-                        ))
-                    .toList(),
+              SearchableDropdown<String>(
+                value: selected,
+                items: byMaterial.keys.toList(),
+                labelOf: (k) {
+                  final pts = byMaterial[k];
+                  return pts == null ? k : '$k  (${pts.length} entries)';
+                },
+                labelText: 'Material',
+                hintText: 'Search materials…',
                 onChanged: (v) => setState(() => _materialFilter = v),
               ),
 

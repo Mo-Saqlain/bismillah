@@ -8,6 +8,7 @@ import '../../data/repositories/ledger_repository.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
 import '../common/date_range_bar.dart';
+import '../common/searchable_dropdown.dart';
 import '../../core/export/csv_export.dart';
 import '../../core/export/pdf_generator.dart';
 
@@ -89,21 +90,14 @@ class _IncomeStatementScreenState extends ConsumerState<IncomeStatementScreen> {
           const SizedBox(height: 12),
           AsyncView<List<Project>>(
             value: projects,
-            data: (list) => DropdownButtonFormField<String?>(
-              initialValue: _projectId,
-              decoration: const InputDecoration(labelText: 'Filter by Project'),
-              items: [
-                const DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text('All projects'),
-                ),
-                ...list.map(
-                  (p) => DropdownMenuItem<String?>(
-                    value: p.id,
-                    child: Text(p.name),
-                  ),
-                ),
-              ],
+            data: (list) => SearchableDropdown<String?>(
+              value: _projectId,
+              items: [null, ...list.map((p) => p.id)],
+              labelOf: (id) => id == null
+                  ? 'All projects'
+                  : list.firstWhere((p) => p.id == id).name,
+              labelText: 'Filter by Project',
+              hintText: 'Search projects…',
               onChanged: (v) => setState(() => _projectId = v),
             ),
           ),

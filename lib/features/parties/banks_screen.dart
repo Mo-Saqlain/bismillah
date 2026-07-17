@@ -8,6 +8,7 @@ import '../../core/money_input.dart';
 import '../../data/models/bank.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
+import '../common/searchable_list.dart';
 import '../reports/bank_ledger_screen.dart';
 
 /// Banks & wallets are first-class accounts now: the user can add as many as
@@ -71,12 +72,11 @@ class _BanksScreenState extends ConsumerState<BanksScreen> {
               ),
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: list.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (_, i) {
-              final b = list[i];
+          return SearchableList<Bank>(
+            items: list,
+            hintText: 'Search banks / wallets…',
+            searchOf: (b) => '${b.name} ${b.accountNo ?? ''}',
+            itemBuilder: (_, b) {
               return Card(
                 child: ListTile(
                   leading: CircleAvatar(

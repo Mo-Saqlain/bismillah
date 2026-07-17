@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/material_type_def.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
+import '../common/searchable_list.dart';
 
 /// Lets the user manage the categories that appear in the Buy Material
 /// transaction form, plus their procurement metadata (UOM class, unit,
@@ -123,12 +124,12 @@ class MaterialTypesScreen extends ConsumerWidget {
               ),
             );
           }
-          return ListView.separated(
+          return SearchableList<MaterialTypeDef>(
+            items: rows,
             padding: const EdgeInsets.all(12),
-            itemCount: rows.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 6),
-            itemBuilder: (_, i) {
-              final r = rows[i];
+            hintText: 'Search material types…',
+            searchOf: (r) => '${r.name} ${r.uom ?? ''}',
+            itemBuilder: (_, r) {
               return Card(
                 child: ListTile(
                   isThreeLine: r.uomType != null || r.uom != null,

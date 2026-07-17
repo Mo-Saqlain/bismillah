@@ -8,6 +8,8 @@ import '../../data/models/party.dart';
 import '../../data/models/project.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
+import '../common/searchable_dropdown.dart';
+import '../common/searchable_list.dart';
 import '../common/date_range_bar.dart';
 import '../common/ledger_view.dart';
 import '../common/trial_balance_card.dart';
@@ -193,18 +195,14 @@ class _SupplierLedgerScreenState extends ConsumerState<SupplierLedgerScreen> {
                   },
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _projectFilter,
-                  decoration: const InputDecoration(
-                    labelText: 'Filter by Project (optional)',
-                    isDense: true,
-                  ),
-                  items: [
-                    const DropdownMenuItem(
-                        value: null, child: Text('All Projects')),
-                    ..._projects.map((p) =>
-                        DropdownMenuItem(value: p.id, child: Text(p.name))),
-                  ],
+                SearchableDropdown<String?>(
+                  value: _projectFilter,
+                  items: [null, ..._projects.map((p) => p.id)],
+                  labelOf: (id) => id == null
+                      ? 'All Projects'
+                      : _projects.firstWhere((p) => p.id == id).name,
+                  labelText: 'Filter by Project (optional)',
+                  hintText: 'Search projects…',
                   onChanged: (v) {
                     _projectFilter = v;
                     _refilter();
@@ -286,10 +284,10 @@ class _SupplierLedgerPickerScreenState
       body: AsyncView<List<Party>>(
         value: suppliers,
         data: (list) {
+          // `both` parties supply materials too, so they belong here.
           final materialSuppliers = list
               .where((s) =>
-                  s.category == null ||
-                  s.category == SupplierCategory.material)
+                  s.category == null || s.category!.suppliesMaterial)
               .toList();
           if (materialSuppliers.isEmpty) {
             return Center(
@@ -300,12 +298,11 @@ class _SupplierLedgerPickerScreenState
                   : 'No material suppliers yet. Add one from Manage → Suppliers.'),
             ));
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: materialSuppliers.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (_, i) {
-              final s = materialSuppliers[i];
+          return SearchableList<Party>(
+            items: materialSuppliers,
+            hintText: 'Search by name or phone…',
+            searchOf: (s) => '${s.name} ${s.phone ?? ''}',
+            itemBuilder: (_, s) {
               return Card(
                 child: ListTile(
                   leading: CircleAvatar(

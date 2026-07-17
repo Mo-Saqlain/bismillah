@@ -7,6 +7,7 @@ import '../../core/money_input.dart';
 import '../../data/models/labour_type_def.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
+import '../common/searchable_list.dart';
 
 class LabourTypesScreen extends ConsumerWidget {
   const LabourTypesScreen({super.key});
@@ -99,12 +100,11 @@ class LabourTypesScreen extends ConsumerWidget {
               ),
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: rows.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 6),
-            itemBuilder: (_, i) {
-              final r = rows[i];
+          return SearchableList<LabourTypeDef>(
+            items: rows,
+            hintText: 'Search labour types…',
+            searchOf: (r) => '${r.name} ${r.description ?? ''}',
+            itemBuilder: (_, r) {
               return Card(
                 child: ListTile(
                   leading: const CircleAvatar(

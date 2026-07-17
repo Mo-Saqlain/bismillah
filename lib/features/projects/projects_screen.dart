@@ -8,6 +8,7 @@ import '../../core/money_input.dart';
 import '../../data/models/project.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
+import '../common/searchable_list.dart';
 import 'project_reconciliation_screen.dart';
 import 'site_snapshot_screen.dart';
 
@@ -59,12 +60,12 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                   : 'Tap "New Project" to add your first construction site.',
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: list.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (_, i) {
-              final p = list[i];
+          return SearchableList<Project>(
+            items: list.cast<Project>(),
+            hintText: 'Search projects…',
+            searchOf: (p) => '${p.name} ${p.clientName ?? ''} '
+                '${p.siteAddress ?? ''} ${p.projectManager ?? ''}',
+            itemBuilder: (_, p) {
               return Card(
                 child: ListTile(
                   leading: CircleAvatar(

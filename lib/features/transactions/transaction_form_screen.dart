@@ -12,6 +12,7 @@ import '../../data/models/party.dart';
 import '../../data/models/project.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
+import '../common/searchable_dropdown.dart';
 import '../manage/labour_types_screen.dart';
 import '../manage/material_types_screen.dart';
 
@@ -538,14 +539,13 @@ class _TransactionFormScreenState
               if (_needsProject)
                 AsyncView<List<Project>>(
                   value: projects,
-                  data: (list) => DropdownButtonFormField<String>(
-                    initialValue: _projectId,
-                    decoration:
-                        const InputDecoration(labelText: 'Project *'),
-                    items: list
-                        .map((p) => DropdownMenuItem(
-                            value: p.id, child: Text(p.name)))
-                        .toList(),
+                  data: (list) => SearchableDropdown<String>(
+                    value: _projectId,
+                    items: list.map((p) => p.id).toList(),
+                    labelOf: (id) =>
+                        list.firstWhere((p) => p.id == id).name,
+                    labelText: 'Project *',
+                    hintText: 'Search projects…',
                     onChanged: (v) => setState(() => _projectId = v),
                     validator: (v) =>
                         v == null ? 'Project is required' : null,
@@ -556,17 +556,15 @@ class _TransactionFormScreenState
                 const SizedBox(height: 12),
                 AsyncView<List<Project>>(
                   value: projects,
-                  data: (list) => DropdownButtonFormField<String>(
-                    initialValue: _projectId,
-                    decoration: const InputDecoration(
-                        labelText:
-                            'Project (optional — links payment to project)'),
-                    items: [
-                      const DropdownMenuItem(
-                          value: null, child: Text('— None —')),
-                      ...list.map((p) => DropdownMenuItem(
-                          value: p.id, child: Text(p.name))),
-                    ],
+                  data: (list) => SearchableDropdown<String?>(
+                    value: _projectId,
+                    items: [null, ...list.map((p) => p.id)],
+                    labelOf: (id) => id == null
+                        ? '— None —'
+                        : list.firstWhere((p) => p.id == id).name,
+                    labelText:
+                        'Project (optional — links payment to project)',
+                    hintText: 'Search projects…',
                     onChanged: (v) => setState(() => _projectId = v),
                   ),
                 ),
@@ -577,27 +575,32 @@ class _TransactionFormScreenState
                 AsyncView<List<Party>>(
                   value: suppliers,
                   data: (list) {
+                    // A `null`/uncategorized party matches either side (legacy);
+                    // a `both` party (v20) is a labour provider who also
+                    // supplies materials on credit, so it shows up in both the
+                    // labour and the material/supplier-pay pickers.
+                    final isLabourPick = _k == TxnKind.labourPayment ||
+                        _k == TxnKind.labourCredit;
                     final filtered = switch (_k) {
                       TxnKind.labourPayment ||
                       TxnKind.labourCredit =>
                         list
                             .where((s) =>
                                 s.category == null ||
-                                s.category == SupplierCategory.labor)
+                                s.category!.suppliesLabour)
                             .toList(),
                       TxnKind.supplierPay || TxnKind.materialBuy => list
                           .where((s) =>
                               s.category == null ||
-                              s.category == SupplierCategory.material)
+                              s.category!.suppliesMaterial)
                           .toList(),
                       _ => list,
                     };
                     if (filtered.isEmpty) {
                       return Text(
-                        _k == TxnKind.labourPayment ||
-                                _k == TxnKind.labourCredit
-                            ? 'No labour-category suppliers. Add one in Suppliers.'
-                            : 'No material-category suppliers. Add one in Suppliers.',
+                        isLabourPick
+                            ? 'No labour providers. Add one in Suppliers.'
+                            : 'No material suppliers. Add one in Suppliers.',
                         style: TextStyle(
                             color: Theme.of(context).colorScheme.error),
                       );
@@ -606,18 +609,16 @@ class _TransactionFormScreenState
                         !filtered.any((s) => s.id == _supplierId)) {
                       _supplierId = null;
                     }
-                    return DropdownButtonFormField<String>(
-                      initialValue: _supplierId,
-                      decoration: InputDecoration(
-                        labelText: _k == TxnKind.labourPayment ||
-                                _k == TxnKind.labourCredit
-                            ? 'Labour Provider *'
-                            : 'Material Supplier *',
-                      ),
-                      items: filtered
-                          .map((s) => DropdownMenuItem(
-                              value: s.id, child: Text(s.name)))
-                          .toList(),
+                    return SearchableDropdown<String>(
+                      value: _supplierId,
+                      items: filtered.map((s) => s.id).toList(),
+                      labelOf: (id) =>
+                          filtered.firstWhere((s) => s.id == id).name,
+                      searchOf: (id) =>
+                          filtered.firstWhere((s) => s.id == id).phone ?? '',
+                      labelText:
+                          isLabourPick ? 'Labour Provider *' : 'Material Supplier *',
+                      hintText: 'Search by name or phone…',
                       onChanged: (v) => setState(() => _supplierId = v),
                       validator: (v) =>
                           v == null ? 'Select a supplier' : null,
@@ -636,20 +637,17 @@ class _TransactionFormScreenState
                           'No banks/wallets defined. Add one from Settings.');
                     }
                     _cashLike ??= accounts.first;
-                    return DropdownButtonFormField<Account>(
-                      initialValue: _cashLike,
-                      decoration: InputDecoration(
-                        labelText: switch (_k) {
-                          TxnKind.receiveFromProject => 'Receive Into',
-                          TxnKind.serviceFee => 'Receive Into',
-                          TxnKind.walletTransfer => 'From Wallet',
-                          _ => 'Pay From',
-                        },
-                      ),
-                      items: accounts
-                          .map((a) => DropdownMenuItem(
-                              value: a, child: Text(a.name)))
-                          .toList(),
+                    return SearchableDropdown<Account>(
+                      value: _cashLike,
+                      items: accounts,
+                      labelOf: (a) => a.name,
+                      labelText: switch (_k) {
+                        TxnKind.receiveFromProject => 'Receive Into',
+                        TxnKind.serviceFee => 'Receive Into',
+                        TxnKind.walletTransfer => 'From Wallet',
+                        _ => 'Pay From',
+                      },
+                      hintText: 'Search wallets…',
                       onChanged: (v) =>
                           setState(() => _cashLike = v ?? _cashLike),
                     );
@@ -669,14 +667,12 @@ class _TransactionFormScreenState
                     _transferTo ??= accounts.firstWhere(
                         (a) => a.id != _cashLike?.id,
                         orElse: () => accounts.first);
-                    return DropdownButtonFormField<Account>(
-                      initialValue: _transferTo,
-                      decoration:
-                          const InputDecoration(labelText: 'To Wallet'),
-                      items: accounts
-                          .map((a) => DropdownMenuItem(
-                              value: a, child: Text(a.name)))
-                          .toList(),
+                    return SearchableDropdown<Account>(
+                      value: _transferTo,
+                      items: accounts,
+                      labelOf: (a) => a.name,
+                      labelText: 'To Wallet',
+                      hintText: 'Search wallets…',
                       onChanged: (v) =>
                           setState(() => _transferTo = v ?? _transferTo),
                     );
@@ -837,14 +833,12 @@ class _MaterialTypePicker extends ConsumerWidget {
         return Row(
           children: [
             Expanded(
-              child: DropdownButtonFormField<String>(
-                initialValue: selected,
-                decoration:
-                    const InputDecoration(labelText: 'Material Type *'),
-                items: types
-                    .map((t) => DropdownMenuItem(
-                        value: t.name, child: Text(t.name)))
-                    .toList(),
+              child: SearchableDropdown<String>(
+                value: selected,
+                items: types.map((t) => t.name).toList(),
+                labelOf: (name) => name,
+                labelText: 'Material Type *',
+                hintText: 'Search material types…',
                 onChanged: onChanged,
                 validator: (v) =>
                     v == null || v.isEmpty ? 'Pick a material type' : null,
@@ -897,16 +891,12 @@ class _LabourTypePicker extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: current,
-                    decoration:
-                        const InputDecoration(labelText: 'Labour Type (optional)'),
-                    items: [
-                      const DropdownMenuItem(
-                          value: null, child: Text('— None —')),
-                      ...types.map((t) => DropdownMenuItem(
-                          value: t.name, child: Text(t.name))),
-                    ],
+                  child: SearchableDropdown<String?>(
+                    value: current,
+                    items: [null, ...types.map((t) => t.name)],
+                    labelOf: (name) => name ?? '— None —',
+                    labelText: 'Labour Type (optional)',
+                    hintText: 'Search labour types…',
                     onChanged: (v) {
                       final t = types.firstWhereOrNull((t) => t.name == v);
                       onChanged(v, t);

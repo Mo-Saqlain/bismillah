@@ -8,6 +8,8 @@ import '../../data/models/party.dart';
 import '../../data/models/project.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
+import '../common/searchable_dropdown.dart';
+import '../common/searchable_list.dart';
 import '../common/date_range_bar.dart';
 import '../common/ledger_view.dart';
 import '../common/trial_balance_card.dart';
@@ -55,9 +57,9 @@ class _WageLedgerPickerScreenState
       body: AsyncView<List<Party>>(
         value: suppliers,
         data: (list) {
+          // `both` parties provide labour too, so they belong here.
           final workers = list
-              .where((s) =>
-                  s.category == null || s.category == SupplierCategory.labor)
+              .where((s) => s.category == null || s.category!.suppliesLabour)
               .toList();
           if (workers.isEmpty) {
             return Center(
@@ -69,12 +71,11 @@ class _WageLedgerPickerScreenState
               ),
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: workers.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (_, i) {
-              final w = workers[i];
+          return SearchableList<Party>(
+            items: workers,
+            hintText: 'Search by name or phone…',
+            searchOf: (w) => '${w.name} ${w.phone ?? ''}',
+            itemBuilder: (_, w) {
               return Card(
                 child: ListTile(
                   leading: CircleAvatar(
@@ -342,18 +343,14 @@ class _WageLedgerScreenState extends ConsumerState<WageLedgerScreen> {
                 const SizedBox(height: 12),
                 AsyncView<List<Project>>(
                   value: projectsAsync,
-                  data: (projects) => DropdownButtonFormField<String?>(
-                    initialValue: _projectId,
-                    decoration: const InputDecoration(
-                      labelText: 'Filter by Project (optional)',
-                      isDense: true,
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                          value: null, child: Text('All Projects')),
-                      ...projects.map((p) => DropdownMenuItem(
-                          value: p.id, child: Text(p.name))),
-                    ],
+                  data: (projects) => SearchableDropdown<String?>(
+                    value: _projectId,
+                    items: [null, ...projects.map((p) => p.id)],
+                    labelOf: (id) => id == null
+                        ? 'All Projects'
+                        : projects.firstWhere((p) => p.id == id).name,
+                    labelText: 'Filter by Project (optional)',
+                    hintText: 'Search projects…',
                     onChanged: (v) => setState(() => _projectId = v),
                   ),
                 ),

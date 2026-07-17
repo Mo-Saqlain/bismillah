@@ -7,6 +7,7 @@ import '../../data/models/party.dart';
 import '../../data/repositories/entity_repository.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
+import '../common/searchable_list.dart';
 
 /// Suppliers list. Customers were removed entirely; the client is now just a
 /// free-text field on the project.
@@ -84,12 +85,11 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
               ),
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: suppliers.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (_, i) {
-              final p = suppliers[i];
+          return SearchableList<Party>(
+            items: suppliers,
+            hintText: 'Search by name or phone…',
+            searchOf: (p) => '${p.name} ${p.phone ?? ''}',
+            itemBuilder: (_, p) {
               return Card(
                 child: ListTile(
                   leading: CircleAvatar(
