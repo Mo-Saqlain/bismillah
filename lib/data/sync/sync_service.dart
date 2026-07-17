@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:sqflite/sqflite.dart';
@@ -230,6 +231,10 @@ class SyncService {
         for (final table in _kSyncTables) {
           await _pullTable(client, table, tenantId);
         }
+        // Retry any rows previously skipped for a missing FK parent — the
+        // parent may have just arrived in the pulls above (or via a re-push
+        // from the device that owns it). Runs last so parents are present.
+        await _flushPending();
 
         _emit(SyncStatus(
           state: SyncState.idle,
@@ -376,7 +381,7 @@ class SyncService {
       if (rows.isEmpty) break;
 
       final db = _ledger.db;
-      final orphanIds = <Object?>[];
+      final orphans = <Map<String, Object?>>[];
       await db.transaction((txn) async {
         for (final r in rows) {
           final local = _fromRemote(r, table);
@@ -391,13 +396,13 @@ class SyncService {
           // auto-bump trigger, so re-pushing a just-pulled row is a no-op
           // upsert that doesn't change its timestamp.
           final id = local['id'];
-          // Tenant fragmentation can leave a child row (e.g. material_inventory)
-          // tagged with this tenant while its parent project/supplier sits
-          // under a different tenant and is filtered out of the pull — so the
-          // parent never lands locally and the child's FK fails. Skip just that
-          // row instead of aborting the whole page (and the whole re-pull).
-          // A caught constraint error rolls back only its own statement, so the
-          // transaction stays live and the remaining rows still commit.
+          // A child row (e.g. material_inventory / journal_entries) can arrive
+          // before/without its FK parent — the parent may not be on the server
+          // yet (a parent that only ever lived on one device and never pushed).
+          // Skip just that row instead of aborting the page, and buffer it in
+          // `pending_pull` so a later sync re-inserts it the moment the parent
+          // lands (see _flushPending). A caught constraint error rolls back
+          // only its own statement, so the transaction stays live.
           try {
             final existing = await txn.query(table,
                 columns: ['updated_at'],
@@ -413,7 +418,7 @@ class SyncService {
             }
           } catch (e) {
             if (_isForeignKeyError(e)) {
-              orphanIds.add(id);
+              orphans.add(local);
             } else {
               rethrow;
             }
@@ -421,14 +426,8 @@ class SyncService {
         }
       });
 
-      if (orphanIds.isNotEmpty) {
-        ErrorReporter.report(
-          'Skipped ${orphanIds.length} orphaned $table row(s) during pull — '
-          'their parent project/supplier is under a different tenant and was '
-          'not synced. Unify the tenant_id on the server, then re-pull. '
-          'ids: ${orphanIds.join(', ')}',
-          source: 'Sync',
-        );
+      if (orphans.isNotEmpty) {
+        await _bufferOrphans(table, orphans);
       }
 
       for (final r in rows) {
@@ -447,6 +446,121 @@ class SyncService {
       final parsed = DateTime.tryParse(finalMax);
       if (parsed != null) await _entities.setPullCursor(table, parsed);
     }
+  }
+
+  // ── Orphan retry buffer (self-healing pull) ────────────────────────────
+
+  /// Give up on a buffered orphan after this many failed retries so a truly
+  /// unrecoverable row (parent genuinely deleted everywhere) can't grow the
+  /// buffer or re-log forever. At the 2-minute tick that's ~hours of retries.
+  static const _maxOrphanAttempts = 50;
+
+  /// Persist rows skipped for a missing FK parent so a later sync can retry
+  /// them. Keyed by (id, table); re-buffering an already-pending row just
+  /// refreshes its payload, leaving the attempt count intact.
+  Future<void> _bufferOrphans(
+      String table, List<Map<String, Object?>> rows) async {
+    final db = _ledger.db;
+    final now = DateTime.now().toUtc().toIso8601String();
+    await db.transaction((txn) async {
+      for (final r in rows) {
+        final id = r['id'];
+        if (id == null) continue;
+        final existing = await txn.query('pending_pull',
+            columns: ['attempts'],
+            where: 'id = ? AND table_name = ?',
+            whereArgs: [id, table],
+            limit: 1);
+        if (existing.isEmpty) {
+          await txn.insert('pending_pull', {
+            'id': id,
+            'table_name': table,
+            'payload': jsonEncode(r),
+            'attempts': 0,
+            'first_seen': now,
+          });
+        } else {
+          await txn.update(
+            'pending_pull',
+            {'payload': jsonEncode(r)},
+            where: 'id = ? AND table_name = ?',
+            whereArgs: [id, table],
+          );
+        }
+      }
+    });
+  }
+
+  /// Re-attempt every buffered orphan. A row that now inserts (its parent has
+  /// arrived) is removed from the buffer; one that still fails has its attempt
+  /// count bumped and is dropped once it exceeds [_maxOrphanAttempts]. Called
+  /// at the end of every [syncNow], after the pulls that may supply parents.
+  Future<void> _flushPending() async {
+    final db = _ledger.db;
+    final pending = await db.query('pending_pull', orderBy: 'first_seen ASC');
+    if (pending.isEmpty) return;
+
+    for (final p in pending) {
+      final id = p['id'];
+      final table = p['table_name'] as String;
+      final Map<String, Object?> local;
+      try {
+        local =
+            (jsonDecode(p['payload'] as String) as Map).cast<String, Object?>();
+      } catch (_) {
+        // Corrupt payload — nothing we can do with it; drop it.
+        await db.delete('pending_pull',
+            where: 'id = ? AND table_name = ?', whereArgs: [id, table]);
+        continue;
+      }
+
+      try {
+        await db.transaction((txn) async {
+          final existing = await txn.query(table,
+              columns: ['updated_at'],
+              where: 'id = ?',
+              whereArgs: [id],
+              limit: 1);
+          if (existing.isEmpty) {
+            await txn.insert(table, local,
+                conflictAlgorithm: ConflictAlgorithm.replace);
+          } else if (serverTimestampIsNewer(local['updated_at'] as String?,
+              existing.first['updated_at'] as String?)) {
+            await txn.update(table, local, where: 'id = ?', whereArgs: [id]);
+          }
+        });
+        await db.delete('pending_pull',
+            where: 'id = ? AND table_name = ?', whereArgs: [id, table]);
+      } catch (e) {
+        if (!_isForeignKeyError(e)) rethrow;
+        final attempts = ((p['attempts'] as num?) ?? 0).toInt() + 1;
+        if (attempts >= _maxOrphanAttempts) {
+          await db.delete('pending_pull',
+              where: 'id = ? AND table_name = ?', whereArgs: [id, table]);
+          ErrorReporter.report(
+            'Gave up syncing $table row $id after $attempts tries — its parent '
+            'never reached the cloud. Open the device that created it and use '
+            'Settings → Cloud Sync → Re-push everything.',
+            source: 'Sync',
+          );
+        } else {
+          await db.update('pending_pull',
+              {'attempts': attempts, 'last_error': e.toString()},
+              where: 'id = ? AND table_name = ?', whereArgs: [id, table]);
+        }
+      }
+    }
+    // healed / dropped are intentionally not surfaced — a silent self-heal is
+    // the desired behaviour; only a permanent give-up (above) is reported.
+  }
+
+  /// Recovery action: clear the push cursors, then force a full sync so every
+  /// local row for this tenant is re-uploaded. Run this on the device that
+  /// owns a parent which never reached the cloud (its children orphan on other
+  /// devices). Upserts are idempotent, so this only back-fills the server.
+  Future<void> fullRepush() async {
+    await _entities.resetPushCursors();
+    await syncNow(force: true);
   }
 
   // ── Row shape conversion ──────────────────────────────────────────────

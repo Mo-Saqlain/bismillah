@@ -13,7 +13,7 @@ class LocalDb {
   /// through [open], which routes through [_onCreate] / [_onUpgrade] like
   /// normal.
   @visibleForTesting
-  Future<void> applySchemaForTests(Database db) => _onCreate(db, 19);
+  Future<void> applySchemaForTests(Database db) => _onCreate(db, 20);
 
   Database? _db;
   String? _dbPath;
@@ -49,7 +49,7 @@ class LocalDb {
     _db = await factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 19,
+        version: 20,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
         },
@@ -193,6 +193,23 @@ class LocalDb {
       CREATE TABLE app_settings (
         key TEXT PRIMARY KEY,
         value TEXT
+      )
+    ''');
+
+    // v20: retry buffer for pulled rows whose FK parent isn't present yet
+    // (a child synced before/without its parent — the classic cross-device
+    // orphan). Local-only: NOT synced to Supabase. The pull enqueues the
+    // skipped row here and every sync re-attempts the buffer AFTER pulling
+    // parents, so the child self-heals the moment its parent arrives.
+    await db.execute('''
+      CREATE TABLE pending_pull (
+        id TEXT NOT NULL,
+        table_name TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        first_seen TEXT NOT NULL,
+        last_error TEXT,
+        PRIMARY KEY (id, table_name)
       )
     ''');
 
@@ -866,6 +883,24 @@ class LocalDb {
       try {
         await db.execute('ALTER TABLE projects ADD COLUMN whatsapp TEXT');
       } catch (_) {/* column may already exist on partial upgrades */}
+    }
+
+    if (oldVersion < 20) {
+      // v20: local-only retry buffer for pulled rows whose FK parent isn't
+      // present yet (cross-device orphan). See _onCreate for the rationale.
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS pending_pull (
+            id TEXT NOT NULL,
+            table_name TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            first_seen TEXT NOT NULL,
+            last_error TEXT,
+            PRIMARY KEY (id, table_name)
+          )
+        ''');
+      } catch (_) {/* table may already exist on partial upgrades */}
     }
   }
 

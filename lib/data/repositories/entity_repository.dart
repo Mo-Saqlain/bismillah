@@ -1289,6 +1289,17 @@ class EntityRepository {
     await _db.delete('app_settings', where: "key LIKE 'cloud_pull_at:%'");
   }
 
+  /// Clears every stored push cursor so the next sync re-uploads all local
+  /// rows for the current tenant. Powers the "re-push everything" recovery
+  /// action — the fix for a parent that only ever lived on one device and
+  /// never reached the server (so its children orphan on the other device).
+  /// Upserts are idempotent and `updated_at` is client-authoritative (the
+  /// server auto-bump trigger is dropped), so a full re-push can't ping-pong
+  /// timestamps or clobber newer edits. Safe to call any time.
+  Future<void> resetPushCursors() async {
+    await _db.delete('app_settings', where: "key LIKE 'cloud_push_at:%'");
+  }
+
   // ---- Settings ----
 
   Future<String?> getSetting(String key) async {

@@ -133,17 +133,23 @@ regenerates any of them if ever needed.
   whichever syncs with the later timestamp (the other edit is lost) —
   acceptable for a single operator; bulletproofing would need per-field
   merge / a dirty flag, which is overkill here.
-- **Pull is fault-tolerant per row, not per page.** A pulled child row
-  whose FK parent isn't present locally (the classic symptom of tenant
-  fragmentation: the child passes the `tenant_id` filter but its parent
-  is under a different tenant and doesn't) would otherwise throw and roll
-  back the *entire* page transaction out of `syncNow`, so one orphan
-  aborts a whole re-pull. `_pullTable` now catches
-  `SQLITE_CONSTRAINT_FOREIGNKEY` (787) per row, skips + logs the orphan
-  to Recent Errors, and lets the rest commit (a caught constraint error
-  rolls back only its own statement). Non-FK errors still propagate. The
-  real fix is still data-side — unify every synced table's `tenant_id`,
-  not just `projects` — but this stops a single stray row blocking sync.
+- **Pull is fault-tolerant AND self-healing per row.** A pulled child row
+  whose FK parent isn't present locally (child synced before/without its
+  parent — cross-device timing, or a parent that only ever lived on one
+  device and never pushed) would otherwise throw and roll back the *entire*
+  page transaction out of `syncNow`, so one orphan aborts a whole re-pull.
+  `_pullTable` catches `SQLITE_CONSTRAINT_FOREIGNKEY` (787) per row (a
+  caught constraint error rolls back only its own statement, so the rest
+  commit) and **buffers the row in the local-only `pending_pull` table**
+  (v20). Every `syncNow` runs `_flushPending()` *after* the pulls, so the
+  moment the parent lands the child re-inserts automatically — no manual
+  re-pull. Retries are bounded (`_maxOrphanAttempts`); a row that never
+  resolves is dropped with a Recent-Errors note pointing at **Re-push
+  everything**. Within a single pull, parents are always pulled before
+  children (fixed `_kSyncTables` order), so the ONLY way to orphan is a
+  parent absent from the server — fixed by re-pushing from the device that
+  owns it (`SyncService.fullRepush()` → `resetPushCursors()`). Non-FK
+  errors still propagate. `pending_pull` is never synced to Supabase.
 - **Tenant identity is baked into the build (`SUPABASE_TENANT_ID`).**
   `ensureTenantId()` returns the build-time `SupabaseConfig.tenantId`
   when set, so **every install of the operator's APK shares one tenant**
@@ -210,7 +216,7 @@ regenerates any of them if ever needed.
   suppliers, banks, projects (incl. `whatsapp`, `serviceFeeType`,
   `serviceFeeAmount`), material/labour type defs, counter entities,
   notes, follow-ups, the `change_log` writer (`logChange`), and the
-  cloud-sync cursors (incl. `resetPullCursors`).
+  cloud-sync cursors (incl. `resetPullCursors` / `resetPushCursors`).
 - **Searchable pickers** — `lib/features/common/searchable_dropdown.dart`
   (`SearchableDropdown<T>`, a type-ahead `DropdownMenu` wrapped in a
   `FormField` so `Form.validate()` still fires, with external-value sync)
@@ -228,9 +234,12 @@ regenerates any of them if ever needed.
   prompt lives in `transaction_form_screen.dart`.
 - **Backup / restore** — `lib/data/services/backup_service.dart`; UI in
   `settings/backups_list_screen.dart` and `common/restore_gateway.dart`.
-- **Migrations** — `lib/data/db/local_db.dart` `_migrate`. v1..v19.
+- **Migrations** — `lib/data/db/local_db.dart` `_migrate`. v1..v20
+  (v20 = the local-only `pending_pull` orphan-retry buffer).
 - **Cloud sync** — `lib/data/sync/sync_service.dart` (`syncNow`,
-  `fullRepull`, `diagnostics`, `SyncTableDiag`). Settings UI in
+  `fullRepull`, `fullRepush`, `diagnostics`, `SyncTableDiag`, plus the
+  `pending_pull` buffer helpers `_bufferOrphans` / `_flushPending`).
+  Settings UI (incl. Re-pull / Re-push everything) in
   `settings/settings_screen.dart`.
 - **Supabase schema** — `supabase/migrations/` (`0001_initial.sql` +
   `0002_material_quantity_optional.sql` + `0003_service_fee_fixed.sql`

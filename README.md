@@ -180,10 +180,14 @@ multi-device use.
   `here / cloud / all-tenants` row counts so you can see exactly what
   is and isn't synced, and **Re-pull everything** safely re-downloads
   every row for your tenant (never overwrites local data).
-- **Fault-tolerant pull** — a pulled child row whose parent isn't
-  present (e.g. a material buy whose supplier is under a different
-  tenant after legacy fragmentation) is skipped and logged rather than
-  aborting the whole sync; the rest still completes.
+- **Self-healing pull** — a pulled child row whose parent isn't present
+  yet (a child synced before/without its project or supplier) is
+  buffered and retried on every sync instead of aborting the sync or
+  being lost; the moment the parent arrives, the child inserts
+  automatically.
+- **Re-push everything** — force-re-upload every row from this phone.
+  Use on the device that created a project/supplier which never reached
+  the cloud, so its transactions stop orphaning on other devices.
 - **Build-time credentials** — `SUPABASE_URL` and `SUPABASE_ANON_KEY`
   are baked into the APK via `--dart-define`; no secrets are committed.
   Apply every file in [supabase/migrations/](supabase/migrations/)
@@ -223,7 +227,7 @@ Appearance · Backup & Export · Cloud Sync (status, last-sync, Sync
 diagnostics, Re-pull everything, Sync now, Tenant ID) · Audit (Activity
 Log, Recent Errors) · Catalogs (Material Types, Labour Types).
 
-### 120 automated tests
+### 122 automated tests
 
 All passing under `flutter test`, driving a real SQLite engine via
 `sqflite_common_ffi` (no mocks); production migrations run on every
@@ -239,7 +243,7 @@ normalization), `backup_blackbox_test`, `project_breakdown_test`,
 
 - **[USER_MANUAL.md](USER_MANUAL.md)** — for the operator.
 - **[TECHNICAL.md](TECHNICAL.md)** — for engineers: stack, data model,
-  schema (v19), repositories, reporting engine, backup, cloud-sync
+  schema (v20), repositories, reporting engine, backup, cloud-sync
   design, migration history.
 - **[CLAUDE.md](CLAUDE.md)** — orientation for AI assistants / future
   maintainers: load-bearing invariants, non-obvious decisions, where
@@ -254,7 +258,7 @@ Run from the repository root:
 ```bash
 flutter pub get
 flutter run                          # connected Android phone / emulator
-flutter test                         # 120 automated tests
+flutter test                         # 122 automated tests
 flutter analyze --no-fatal-infos
 ```
 

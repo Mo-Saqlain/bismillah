@@ -519,7 +519,7 @@ Settings → Audit → **Recent Errors** opens
 3. `RestoreGateway.initState()` decides whether to silently restore
    from `solo_con_latest.db` or proceed straight to HomeScreen (see
    section 7.2).
-4. `LocalDb.instance.open()` runs migrations to schema version 17.
+4. `LocalDb.instance.open()` runs migrations to schema version 20.
 
 ---
 
@@ -616,6 +616,9 @@ flutter analyze --no-fatal-infos              # static analysis
 | v15     | Cloud-sync plumbing: `synced` flag on every domain table, `tenant_id` + `last_pull_at_*` in app_settings, `updated_at` defaults applied across schema |
 | v16     | Removed the Customer entity: dropped `customers` table, dropped `customer_id` column from projects + journal_entries (DROP COLUMN requires SQLite ≥ 3.35; guarded with try/catch). Project is now the only counterparty |
 | v17     | Made `material_inventory.quantity` / `.rate` nullable (table recreated; bump-on-update trigger reinstated) so a material buy can be logged without a quantity. Quantity-less rows carry a null rate and are excluded from the Material Price Trend — their detail lives in the memo |
+| v18     | `service_fee_type` (`'percent'` / `'fixed'`, default `'percent'`) + `service_fee_amount` on projects, so a Labour-Rate service fee can be a flat rupee amount instead of a percentage |
+| v19     | `whatsapp` (client number) on projects, for the post-transaction WhatsApp confirmation. Suppliers reuse their existing `phone` column |
+| v20     | `pending_pull` table — a **local-only** retry buffer (not synced to Supabase) for pulled rows whose FK parent isn't present yet. The pull buffers such orphans; every sync re-attempts them after pulling parents, so a child synced before/without its parent self-heals once the parent arrives |
 
 ---
 

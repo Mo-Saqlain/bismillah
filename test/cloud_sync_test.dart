@@ -15,6 +15,8 @@
 //
 // The network call itself (`client.from(t).upsert(rows)`) is a single
 // line in SyncService and is tested manually against a live project.
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -231,6 +233,93 @@ void main() {
       final after = await _entityRepo.project(pId);
       expect(after!.name, 'Locally renamed',
           reason: 'a stale server row must not clobber a newer local edit');
+    });
+
+  });
+
+  group('Orphan retry buffer (v20)', () {
+    test('resetPushCursors clears push cursors but leaves pull cursors',
+        () async {
+      final ts = DateTime.utc(2026, 5, 25);
+      await _entityRepo.setPushCursor('projects', ts);
+      await _entityRepo.setPushCursor('journal_entries', ts);
+      await _entityRepo.setPullCursor('projects', ts);
+      await _entityRepo.resetPushCursors();
+      expect(await _entityRepo.pushCursor('projects'), isNull);
+      expect(await _entityRepo.pushCursor('journal_entries'), isNull);
+      expect(await _entityRepo.pullCursor('projects'), ts,
+          reason: 'pull cursors are untouched by a push reset');
+    });
+
+    test('a child pulled before its parent fails, then heals once the parent '
+        'arrives (self-healing pull contract)', () async {
+      const childId = 'mi-orphan-1';
+      final now = DateTime.now().toUtc().toIso8601String();
+      final child = <String, Object?>{
+        'id': childId,
+        'project_id': 'missing-project',
+        'supplier_id': null,
+        'material_type': 'Cement',
+        'unit': 'lump',
+        'total_cost': 29500.0,
+        'txn_type': 'purchase',
+        'is_deleted': 0,
+        'created_at': now,
+        'updated_at': now,
+      };
+
+      // 1. Parent absent → the FK insert fails with SQLITE_CONSTRAINT_FOREIGNKEY.
+      DatabaseException? caught;
+      try {
+        await _db.insert('material_inventory', child);
+      } on DatabaseException catch (e) {
+        caught = e;
+      }
+      expect(caught, isNotNull, reason: 'orphan child must not insert');
+      expect(caught!.getResultCode(), 787, reason: 'is an FK violation');
+
+      // 2. Buffer it (what _bufferOrphans does).
+      await _db.insert('pending_pull', {
+        'id': childId,
+        'table_name': 'material_inventory',
+        'payload': jsonEncode(child),
+        'attempts': 0,
+        'first_seen': now,
+      });
+      expect(
+          await _db.query('pending_pull',
+              where: 'id = ?', whereArgs: [childId]),
+          hasLength(1));
+
+      // 3. The parent finally arrives (a later pull / a re-push from its owner).
+      await _db.insert('projects', {
+        'id': 'missing-project',
+        'name': 'Late Project',
+        'model': ProjectModel.withMaterial.db,
+        'status': ProjectStatus.active.db,
+        'completion_percent': 0,
+        'is_archived': 0,
+        'created_at': now,
+        'updated_at': now,
+      });
+
+      // 4. Flush retries the buffered payload — now it inserts and clears.
+      final payload = (jsonDecode((await _db.query('pending_pull',
+                  where: 'id = ?', whereArgs: [childId]))
+              .first['payload'] as String) as Map)
+          .cast<String, Object?>();
+      await _db.insert('material_inventory', payload,
+          conflictAlgorithm: ConflictAlgorithm.replace);
+      await _db.delete('pending_pull',
+          where: 'id = ?', whereArgs: [childId]);
+
+      expect(
+          await _db.query('material_inventory',
+              where: 'id = ?', whereArgs: [childId]),
+          hasLength(1),
+          reason: 'child heals once its parent exists');
+      expect(await _db.query('pending_pull'), isEmpty,
+          reason: 'buffer is cleared after a successful retry');
     });
 
     test('A row with a brand-new id from the cloud lands successfully',

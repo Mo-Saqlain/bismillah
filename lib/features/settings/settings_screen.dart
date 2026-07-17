@@ -580,6 +580,7 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
   bool _busy = false;
   bool _checking = false;
   bool _repulling = false;
+  bool _repushing = false;
   bool _diagBusy = false;
   SupabaseHealth? _health;
 
@@ -661,6 +662,32 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
       );
     } finally {
       if (mounted) setState(() => _repulling = false);
+    }
+  }
+
+  Future<void> _fullRepush() async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _repushing = true);
+    try {
+      final svc = await ref.read(syncServiceFutureProvider.future);
+      await svc.fullRepush();
+      await _load();
+      final s = svc.currentStatus;
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(switch (s.state) {
+            SyncState.idle => 'Re-pushed everything to the cloud ✓',
+            SyncState.offline => 'Offline — will re-push when back online',
+            SyncState.error =>
+              'Re-push failed: ${s.message ?? 'unknown error'}',
+            _ => 'Re-push finished',
+          }),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _repushing = false);
     }
   }
 
@@ -890,6 +917,23 @@ class _CloudSyncCardState extends ConsumerState<_CloudSyncCard> {
                   )
                 : const Icon(Icons.chevron_right),
             onTap: _repulling ? null : _fullRepull,
+          ),
+          ListTile(
+            leading: const Icon(Icons.cloud_upload_outlined),
+            title: const Text('Re-push everything to cloud'),
+            subtitle: const Text(
+              'Re-upload every row from this phone. Use on the device that '
+              'created a project/supplier which is missing on another device '
+              '(fixes "orphaned row" sync errors). Safe — upserts by id.',
+            ),
+            trailing: _repushing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.chevron_right),
+            onTap: _repushing ? null : _fullRepush,
           ),
           ListTile(
             leading: const Icon(Icons.fingerprint),
