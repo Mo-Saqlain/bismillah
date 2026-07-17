@@ -5,6 +5,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants.dart';
+import '../../core/error_reporter.dart';
 import '../repositories/entity_repository.dart';
 import '../repositories/ledger_repository.dart';
 
@@ -261,6 +262,14 @@ class SyncService {
     return e.toString().contains('database_closed');
   }
 
+  /// A foreign-key constraint violation (SQLITE_CONSTRAINT_FOREIGNKEY, code
+  /// 787) — a pulled child row whose parent isn't present locally. Checked by
+  /// result code and message so it's robust across sqflite versions.
+  static bool _isForeignKeyError(Object e) {
+    if (e is DatabaseException && e.getResultCode() == 787) return true;
+    return e.toString().contains('FOREIGN KEY constraint failed');
+  }
+
   /// Recovery action: clear the pull cursors, then run a full forced sync so
   /// every server row for this tenant is re-downloaded. Pulls are INSERT OR
   /// IGNORE, so local rows are never overwritten — this only back-fills rows
@@ -367,6 +376,7 @@ class SyncService {
       if (rows.isEmpty) break;
 
       final db = _ledger.db;
+      final orphanIds = <Object?>[];
       await db.transaction((txn) async {
         for (final r in rows) {
           final local = _fromRemote(r, table);
@@ -381,20 +391,45 @@ class SyncService {
           // auto-bump trigger, so re-pushing a just-pulled row is a no-op
           // upsert that doesn't change its timestamp.
           final id = local['id'];
-          final existing = await txn.query(table,
-              columns: ['updated_at'],
-              where: 'id = ?',
-              whereArgs: [id],
-              limit: 1);
-          if (existing.isEmpty) {
-            await txn.insert(table, local,
-                conflictAlgorithm: ConflictAlgorithm.replace);
-          } else if (serverTimestampIsNewer(local['updated_at'] as String?,
-              existing.first['updated_at'] as String?)) {
-            await txn.update(table, local, where: 'id = ?', whereArgs: [id]);
+          // Tenant fragmentation can leave a child row (e.g. material_inventory)
+          // tagged with this tenant while its parent project/supplier sits
+          // under a different tenant and is filtered out of the pull — so the
+          // parent never lands locally and the child's FK fails. Skip just that
+          // row instead of aborting the whole page (and the whole re-pull).
+          // A caught constraint error rolls back only its own statement, so the
+          // transaction stays live and the remaining rows still commit.
+          try {
+            final existing = await txn.query(table,
+                columns: ['updated_at'],
+                where: 'id = ?',
+                whereArgs: [id],
+                limit: 1);
+            if (existing.isEmpty) {
+              await txn.insert(table, local,
+                  conflictAlgorithm: ConflictAlgorithm.replace);
+            } else if (serverTimestampIsNewer(local['updated_at'] as String?,
+                existing.first['updated_at'] as String?)) {
+              await txn.update(table, local, where: 'id = ?', whereArgs: [id]);
+            }
+          } catch (e) {
+            if (_isForeignKeyError(e)) {
+              orphanIds.add(id);
+            } else {
+              rethrow;
+            }
           }
         }
       });
+
+      if (orphanIds.isNotEmpty) {
+        ErrorReporter.report(
+          'Skipped ${orphanIds.length} orphaned $table row(s) during pull — '
+          'their parent project/supplier is under a different tenant and was '
+          'not synced. Unify the tenant_id on the server, then re-pull. '
+          'ids: ${orphanIds.join(', ')}',
+          source: 'Sync',
+        );
+      }
 
       for (final r in rows) {
         final u = r['updated_at'] as String?;
