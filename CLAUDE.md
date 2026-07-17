@@ -89,6 +89,18 @@ regenerates any of them if ever needed.
   costs" intact across the project's whole life; the per-month bucket
   is the delta. `closeAsOf` is passed so a project archived this week
   doesn't retroactively change what February looked like.
+- **Supplier `category` is a UI filter only — never a ledger input.**
+  `SupplierCategory.{labor,material,both}` (plus legacy `null`) decides
+  which transaction pickers and ledgers a supplier appears in; it has
+  **zero** effect on posting. Payables are scoped by `supplier_id`, so a
+  provider who does both labour and materials keeps **one** running
+  balance regardless of category. `both` is the answer to "a labour
+  contractor who also supplies material on credit" — no new entity, no
+  schema change (`suppliers.category` is free TEXT locally and on
+  Supabase). The pickers include a party when its category matches OR is
+  `null`; use `SupplierCategory.suppliesLabour` / `.suppliesMaterial`
+  (which both accept `both`) rather than `== labor` / `== material` when
+  filtering, or a `both` supplier silently drops out of one side.
 - **Labour-Rate service fee is either a percentage OR a fixed amount.**
   `ServiceFeeType.{percent,fixed}` on the project. **`Project.serviceFeeOn(totalSpent)`
   is the single source of truth for the fee math** — fixed returns the
@@ -121,6 +133,17 @@ regenerates any of them if ever needed.
   whichever syncs with the later timestamp (the other edit is lost) —
   acceptable for a single operator; bulletproofing would need per-field
   merge / a dirty flag, which is overkill here.
+- **Pull is fault-tolerant per row, not per page.** A pulled child row
+  whose FK parent isn't present locally (the classic symptom of tenant
+  fragmentation: the child passes the `tenant_id` filter but its parent
+  is under a different tenant and doesn't) would otherwise throw and roll
+  back the *entire* page transaction out of `syncNow`, so one orphan
+  aborts a whole re-pull. `_pullTable` now catches
+  `SQLITE_CONSTRAINT_FOREIGNKEY` (787) per row, skips + logs the orphan
+  to Recent Errors, and lets the rest commit (a caught constraint error
+  rolls back only its own statement). Non-FK errors still propagate. The
+  real fix is still data-side — unify every synced table's `tenant_id`,
+  not just `projects` — but this stops a single stray row blocking sync.
 - **Tenant identity is baked into the build (`SUPABASE_TENANT_ID`).**
   `ensureTenantId()` returns the build-time `SupabaseConfig.tenantId`
   when set, so **every install of the operator's APK shares one tenant**
@@ -188,6 +211,18 @@ regenerates any of them if ever needed.
   `serviceFeeAmount`), material/labour type defs, counter entities,
   notes, follow-ups, the `change_log` writer (`logChange`), and the
   cloud-sync cursors (incl. `resetPullCursors`).
+- **Searchable pickers** — `lib/features/common/searchable_dropdown.dart`
+  (`SearchableDropdown<T>`, a type-ahead `DropdownMenu` wrapped in a
+  `FormField` so `Form.validate()` still fires, with external-value sync)
+  replaces every entity `DropdownButtonFormField`;
+  `lib/features/common/searchable_list.dart` (`SearchableList<T>`) is the
+  search-box-over-a-filtered-list used by the entity-management and
+  ledger-picker screens. Always reach for these, not a bare dropdown/list.
+- **Error reporting** — `lib/core/error_reporter.dart`. Note the
+  SnackBar's "Details" dialog opens through `ErrorReporter.navigatorKey`
+  (wired to `MaterialApp.navigatorKey` in `app.dart`), **not** the
+  ScaffoldMessenger context — the messenger sits above the Navigator, so
+  `showDialog` off it throws "No Navigator widget found".
 - **WhatsApp deep-link helper** — `lib/core/whatsapp.dart`
   (`normalizeWhatsAppNumber`, `launchWhatsApp`). The post-transaction
   prompt lives in `transaction_form_screen.dart`.

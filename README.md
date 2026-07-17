@@ -53,6 +53,12 @@ by its memo alone. The Labour-Rate **service fee is not a manual entry**
 — it's configured on the project (percentage or fixed) and posted
 automatically as a reclassification when the project is reconciled/closed.
 
+A single supplier can be tagged **Labour**, **Materials**, or **Both** —
+a labour contractor who also supplies material on credit is one party,
+not two. Their material and labour credit accumulate on one running
+balance (payables are tracked per supplier, not per category), and a
+**Both** party shows up in every relevant picker and ledger.
+
 ### WhatsApp confirmation on each transaction
 
 After a transaction is saved, the app offers to open **WhatsApp**
@@ -174,6 +180,10 @@ multi-device use.
   `here / cloud / all-tenants` row counts so you can see exactly what
   is and isn't synced, and **Re-pull everything** safely re-downloads
   every row for your tenant (never overwrites local data).
+- **Fault-tolerant pull** — a pulled child row whose parent isn't
+  present (e.g. a material buy whose supplier is under a different
+  tenant after legacy fragmentation) is skipped and logged rather than
+  aborting the whole sync; the rest still completes.
 - **Build-time credentials** — `SUPABASE_URL` and `SUPABASE_ANON_KEY`
   are baked into the APK via `--dart-define`; no secrets are committed.
   Apply every file in [supabase/migrations/](supabase/migrations/)
@@ -197,6 +207,11 @@ multi-device use.
 - Positive financial values in emerald, negative in rose — always via
   `BalanceColors.signed()`, never hard-coded.
 - **Pill navigation bar** at the bottom of Home.
+- **Type-ahead pickers**: every project / supplier / wallet / material /
+  labour-type selector in the New Transaction form and report filters
+  filters as you type; the entity-management screens (Projects,
+  Suppliers, Banks, Material Types, Labour Types) and the ledger pickers
+  each have a search box. Supplier search also matches phone number.
 - **Zoom-safe**: the OS font/display scale is clamped so a phone set to
   a large display size stays legible; the New Transaction / Manage /
   Reports lists use compact single-line tiles.
@@ -208,7 +223,7 @@ Appearance · Backup & Export · Cloud Sync (status, last-sync, Sync
 diagnostics, Re-pull everything, Sync now, Tenant ID) · Audit (Activity
 Log, Recent Errors) · Catalogs (Material Types, Labour Types).
 
-### 113 automated tests
+### 120 automated tests
 
 All passing under `flutter test`, driving a real SQLite engine via
 `sqflite_common_ffi` (no mocks); production migrations run on every
@@ -239,7 +254,7 @@ Run from the repository root:
 ```bash
 flutter pub get
 flutter run                          # connected Android phone / emulator
-flutter test                         # 113 automated tests
+flutter test                         # 120 automated tests
 flutter analyze --no-fatal-infos
 ```
 
