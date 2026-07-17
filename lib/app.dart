@@ -26,6 +26,9 @@ class BismillahApp extends ConsumerWidget {
       // Global key so [ErrorReporter] can pop SnackBars from anywhere
       // (including async error handlers that have no BuildContext).
       scaffoldMessengerKey: ErrorReporter.messengerKey,
+      // Navigator key so the SnackBar's "Details" dialog opens under the
+      // Navigator (the messenger context alone sits above it and can't).
+      navigatorKey: ErrorReporter.navigatorKey,
       themeMode: mode,
       theme: buildTheme(brightness: Brightness.light),
       darkTheme: buildTheme(brightness: Brightness.dark),

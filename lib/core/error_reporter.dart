@@ -30,6 +30,13 @@ class ErrorReporter {
   static final GlobalKey<ScaffoldMessengerState> messengerKey =
       GlobalKey<ScaffoldMessengerState>();
 
+  /// Set by [BismillahApp] on `MaterialApp.navigatorKey`. The SnackBar's
+  /// "Details" dialog is opened through this navigator's overlay context —
+  /// the ScaffoldMessenger's own context sits *above* the Navigator, so
+  /// `showDialog` off it throws "No Navigator widget found".
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   /// Add an error to the log and surface it as a SnackBar (if a messenger
   /// is mounted). Safe to call from any isolate context — falls back to
   /// silent storage if no UI is up yet.
@@ -93,10 +100,13 @@ class ErrorReporter {
           label: 'Details',
           textColor: Colors.white,
           onPressed: () {
-            final ctx = messenger.context;
+            // Open the dialog through the Navigator's overlay context, not the
+            // messenger context (which is above the Navigator and would throw).
+            final overlayCtx = navigatorKey.currentState?.overlay?.context;
+            if (overlayCtx == null) return;
             showDialog<void>(
-              context: ctx,
-              builder: (_) => AlertDialog(
+              context: overlayCtx,
+              builder: (dialogCtx) => AlertDialog(
                 icon: Icon(Icons.error_outline,
                     color: Colors.red.shade700, size: 36),
                 title: const Text('Error details'),
@@ -128,7 +138,7 @@ class ErrorReporter {
                 ),
                 actions: [
                   TextButton(
-                    onPressed: () => Navigator.pop(ctx),
+                    onPressed: () => Navigator.pop(dialogCtx),
                     child: const Text('Close'),
                   ),
                 ],
