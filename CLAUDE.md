@@ -150,6 +150,25 @@ regenerates any of them if ever needed.
   parent absent from the server — fixed by re-pushing from the device that
   owns it (`SyncService.fullRepush()` → `resetPushCursors()`). Non-FK
   errors still propagate. `pending_pull` is never synced to Supabase.
+- **Push completeness self-heals; the time cursor is a lossy optimization.**
+  Push sends rows where `updated_at > pushCursor`, which silently misses a
+  row created before sync started or under an old tenant (its `updated_at`
+  is already behind the cursor) — that stranded row then orphans its
+  children on other devices. Two automatic guards close this: (1)
+  `ensureTenantId()` calls `resetPushCursors()` whenever the tenant
+  *changes*, so every local row re-uploads under the new tenant; (2)
+  `syncNow` runs a one-time-per-install backfill (`_ensurePushBackfill`,
+  keyed by `_pushBackfillMarker` in `app_settings`) that resets push
+  cursors once after upgrade. Both just force a full re-push; upserts are
+  idempotent so it's safe. Bump `_pushBackfillMarker` to trigger a fresh
+  one-time backfill on every install.
+- **Duplicate suppliers merge, they don't delete.** Cross-device double
+  entry can create two supplier rows for one real party.
+  `mergeSuppliers(keepId, duplicateIds)` re-points every `journal_entries`
+  / `material_inventory` row onto the kept id and archives the rest — no
+  ledger recomputation because payables are scoped by `supplier_id`. UI:
+  `parties/duplicate_suppliers_screen.dart`, reached from the Suppliers
+  screen's merge-duplicates app-bar action.
 - **Tenant identity is baked into the build (`SUPABASE_TENANT_ID`).**
   `ensureTenantId()` returns the build-time `SupabaseConfig.tenantId`
   when set, so **every install of the operator's APK shares one tenant**

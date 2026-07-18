@@ -431,6 +431,61 @@ class EntityRepository {
     return rows.isEmpty ? null : Party.fromMap(rows.first);
   }
 
+  /// Groups of active suppliers that share a normalised name (case- and
+  /// whitespace-insensitive) — duplicate parties, usually created separately
+  /// on two devices before sync converged. Only groups with 2+ members are
+  /// returned. Each group is ordered oldest-first (a sensible default "keep").
+  Future<List<List<Party>>> duplicateSupplierGroups() async {
+    final all = await suppliers(); // active only
+    final byKey = <String, List<Party>>{};
+    for (final p in all) {
+      final key = p.name.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+      (byKey[key] ??= []).add(p);
+    }
+    final groups = byKey.values.where((g) => g.length > 1).toList();
+    for (final g in groups) {
+      g.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    }
+    return groups;
+  }
+
+  /// Merges [duplicateIds] into [keepId]: re-points every ledger and inventory
+  /// row from each duplicate onto the kept supplier, then archives the now-empty
+  /// duplicates. Balances consolidate onto one running total (payables are
+  /// scoped by `supplier_id`, so no ledger recomputation is needed). Bumps
+  /// `updated_at` on every touched row so the merge propagates via sync.
+  Future<void> mergeSuppliers({
+    required String keepId,
+    required List<String> duplicateIds,
+  }) async {
+    final now = DateTime.now().toUtc().toIso8601String();
+    final ids = duplicateIds.where((d) => d != keepId).toList();
+    if (ids.isEmpty) return;
+    await _db.transaction((txn) async {
+      for (final dupId in ids) {
+        await txn.update('journal_entries',
+            {'supplier_id': keepId, 'updated_at': now},
+            where: 'supplier_id = ?', whereArgs: [dupId]);
+        await txn.update('material_inventory',
+            {'supplier_id': keepId, 'updated_at': now},
+            where: 'supplier_id = ?', whereArgs: [dupId]);
+        await txn.update(
+            'suppliers',
+            {'is_archived': 1, 'archived_at': now, 'updated_at': now},
+            where: 'id = ?',
+            whereArgs: [dupId]);
+      }
+    });
+    for (final dupId in ids) {
+      await logChange(
+        entityType: 'supplier',
+        entityId: dupId,
+        action: ChangeAction.archive,
+        note: 'Merged into supplier $keepId',
+      );
+    }
+  }
+
   Future<void> updateSupplierFields(
     String id, {
     String? name,
@@ -1232,7 +1287,20 @@ class EntityRepository {
     final baked = SupabaseConfig.tenantId;
     if (baked.isNotEmpty) {
       final existing = await getSetting(SettingsKeys.tenantId);
-      if (existing != baked) await setSetting(SettingsKeys.tenantId, baked);
+      if (existing != baked) {
+        // The tenant is CHANGING (first launch of a baked build, or the
+        // operator moved onto a shared tenant). Rows previously pushed under
+        // the old tenant — or never pushed because their `updated_at` is
+        // behind the push cursor — would otherwise stay stranded and orphan
+        // their children on other devices. Reset the push cursors so the next
+        // sync re-uploads EVERY local row under the new tenant. Idempotent
+        // upserts make this safe. Only on a genuine change (existing set), not
+        // the first-ever launch where nothing has been pushed yet.
+        if (existing != null && existing.isNotEmpty) {
+          await resetPushCursors();
+        }
+        await setSetting(SettingsKeys.tenantId, baked);
+      }
       return baked;
     }
     final existing = await getSetting(SettingsKeys.tenantId);

@@ -939,4 +939,49 @@ void main() {
               'owed by customer');
     });
   });
+
+  // ───────────────────────────────────────────────────────────────────────
+  //  Duplicate-supplier merge (cleanup after cross-device double entry)
+  // ───────────────────────────────────────────────────────────────────────
+
+  group('Merge duplicate suppliers', () {
+    test('finds same-name active suppliers, ignoring case/whitespace',
+        () async {
+      await _entityRepo.createSupplier(name: 'Ali Traders');
+      await _entityRepo.createSupplier(name: '  ali   traders ');
+      await _entityRepo.createSupplier(name: 'Bilal Steel');
+      final groups = await _entityRepo.duplicateSupplierGroups();
+      expect(groups, hasLength(1));
+      expect(groups.first, hasLength(2));
+      expect(groups.first.first.name, 'Ali Traders',
+          reason: 'group is ordered oldest-first');
+    });
+
+    test('merge re-points ledger onto the kept supplier and archives the rest',
+        () async {
+      final keep = (await _entityRepo.createSupplier(name: 'Ali Traders')).id;
+      final dup = (await _entityRepo.createSupplier(name: 'ali traders')).id;
+      final pId = await _project('Site', budget: 1000000);
+      // Credit purchases booked against BOTH duplicate rows.
+      await _ledgerRepo.postMaterialBuy(
+          amount: 30000, projectId: pId, supplierId: keep);
+      await _ledgerRepo.postMaterialBuy(
+          amount: 20000, projectId: pId, supplierId: dup);
+
+      await _entityRepo.mergeSuppliers(keepId: keep, duplicateIds: [keep, dup]);
+
+      // Balances consolidate onto the kept supplier; the duplicate empties.
+      expect(await _ledgerRepo.supplierPayableBalance(keep), 50000,
+          reason: 'both credits now owed to the one kept supplier');
+      expect(await _ledgerRepo.supplierPayableBalance(dup), 0,
+          reason: 'the duplicate has no ledger rows left');
+
+      // The duplicate is archived; the kept one stays active.
+      final active = await _entityRepo.suppliers();
+      expect(active.map((s) => s.id), contains(keep));
+      expect(active.map((s) => s.id), isNot(contains(dup)));
+      expect(await _entityRepo.duplicateSupplierGroups(), isEmpty,
+          reason: 'no duplicates remain after the merge');
+    });
+  });
 }

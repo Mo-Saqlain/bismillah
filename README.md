@@ -188,6 +188,15 @@ multi-device use.
 - **Re-push everything** — force-re-upload every row from this phone.
   Use on the device that created a project/supplier which never reached
   the cloud, so its transactions stop orphaning on other devices.
+- **Automatic push backfill** — a lossy time-cursor could leave a row
+  created before sync (or under an old tenant) stranded on one device.
+  The app now re-pushes everything automatically once after an upgrade
+  and whenever the tenant changes, so stranded parents reach the cloud
+  without any manual step.
+- **Merge duplicate suppliers** — if the same party was entered on two
+  phones before sync converged, the Suppliers screen finds the
+  same-name records and merges them into one (re-points all
+  transactions, archives the rest — nothing deleted).
 - **Build-time credentials** — `SUPABASE_URL` and `SUPABASE_ANON_KEY`
   are baked into the APK via `--dart-define`; no secrets are committed.
   Apply every file in [supabase/migrations/](supabase/migrations/)

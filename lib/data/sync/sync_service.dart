@@ -225,6 +225,13 @@ class SyncService {
         final tenantId = await _entities.ensureTenantId();
         final client = Supabase.instance.client;
 
+        // One-time-per-install integrity backfill: force a full re-push so any
+        // row stranded by a pre-sync / old-tenant push-cursor gap reaches the
+        // server. This is what stops a parent from living only on one device
+        // and orphaning its children elsewhere — it self-corrects on the first
+        // sync after upgrade, with no operator action.
+        await _ensurePushBackfill();
+
         for (final table in _kSyncTables) {
           await _pushTable(client, table, tenantId);
         }
@@ -561,6 +568,20 @@ class SyncService {
   Future<void> fullRepush() async {
     await _entities.resetPushCursors();
     await syncNow(force: true);
+  }
+
+  /// Bump this when a new build needs every install to re-push once (e.g. to
+  /// backfill data stranded by an older, buggier sync). Stored per-install in
+  /// `app_settings` (not synced), so each device runs the backfill exactly
+  /// once regardless of what other devices have done.
+  static const _pushBackfillMarker = 'orphan-fix-2026-07';
+
+  Future<void> _ensurePushBackfill() async {
+    const key = 'sync_push_backfill';
+    final done = await _entities.getSetting(key);
+    if (done == _pushBackfillMarker) return;
+    await _entities.resetPushCursors();
+    await _entities.setSetting(key, _pushBackfillMarker);
   }
 
   // ── Row shape conversion ──────────────────────────────────────────────

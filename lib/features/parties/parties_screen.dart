@@ -8,6 +8,7 @@ import '../../data/repositories/entity_repository.dart';
 import '../../providers/providers.dart';
 import '../common/async_view.dart';
 import '../common/searchable_list.dart';
+import 'duplicate_suppliers_screen.dart';
 
 /// Suppliers list. Customers were removed entirely; the client is now just a
 /// free-text field on the project.
@@ -35,6 +36,17 @@ class _SuppliersScreenState extends ConsumerState<SuppliersScreen> {
       appBar: AppBar(
         title: Text(_showArchived ? 'Archived Suppliers' : 'Suppliers'),
         actions: [
+          if (!_showArchived)
+            IconButton(
+              tooltip: 'Merge duplicates',
+              icon: const Icon(Icons.merge_type),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const DuplicateSuppliersScreen(),
+                ),
+              ),
+            ),
           IconButton(
             tooltip: _showArchived ? 'Show active' : 'Show archived',
             icon: Icon(
