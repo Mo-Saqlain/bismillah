@@ -48,6 +48,15 @@ android {
                 keyPassword = keystoreProperties["keyPassword"] as String
                 storeFile = file(keystoreProperties["storeFile"] as String)
                 storePassword = keystoreProperties["storePassword"] as String
+                // Sign with the full modern scheme set so sideloaded installs
+                // stay valid across Android versions and key-rotation / verified
+                // flows. v1 (JAR) covers <API24 edge cases, v2/v3 are the modern
+                // block, v3 enables key rotation, v4 emits the .idsig for fast
+                // incremental installs.
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
             }
         }
     }

@@ -30,6 +30,7 @@ app.*.map.json
 
 # ── Android build outputs (generated) ───────────────────────────────────
 /android/.gradle/
+/android/.kotlin/
 /android/captures/
 /android/gradlew
 /android/gradlew.bat
@@ -55,6 +56,10 @@ _SIGNED_APK/
 *.apk
 *.aab
 *.apks
+*.exe
+# Release-artifact staging + installer output (built locally, not tracked)
+/dist/
+/installer/output/
 
 # ── Local DB / backup artefacts a user may drop at the root ─────────────
 solo_con_*.db
