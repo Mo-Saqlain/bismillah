@@ -1,7 +1,7 @@
 name: bismillah_constructions
 description: "Bismillah — offline-first double-entry ledger for construction projects."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ^3.11.5

@@ -19,11 +19,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'package:bismillah_constructions/core/constants.dart';
-import 'package:bismillah_constructions/data/db/local_db.dart';
-import 'package:bismillah_constructions/data/repositories/entity_repository.dart';
-import 'package:bismillah_constructions/data/repositories/ledger_repository.dart';
-import 'package:bismillah_constructions/data/services/backup_service.dart';
+import 'package:bismillah_constructions/shared/core/constants.dart';
+import 'package:bismillah_constructions/shared/data/db/local_db.dart';
+import 'package:bismillah_constructions/shared/data/repositories/entity_repository.dart';
+import 'package:bismillah_constructions/shared/data/repositories/ledger_repository.dart';
+import 'package:bismillah_constructions/shared/data/services/backup_service.dart';
 
 // ── Test helpers ────────────────────────────────────────────────────────
 

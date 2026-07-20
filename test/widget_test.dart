@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:bismillah_constructions/core/constants.dart';
+import 'package:bismillah_constructions/shared/core/constants.dart';
 
 void main() {
   test('Chart of accounts is well-formed', () {

@@ -20,11 +20,11 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'package:bismillah_constructions/core/constants.dart';
-import 'package:bismillah_constructions/data/db/local_db.dart';
-import 'package:bismillah_constructions/data/repositories/entity_repository.dart';
-import 'package:bismillah_constructions/data/repositories/ledger_repository.dart';
-import 'package:bismillah_constructions/data/sync/sync_service.dart'
+import 'package:bismillah_constructions/shared/core/constants.dart';
+import 'package:bismillah_constructions/shared/data/db/local_db.dart';
+import 'package:bismillah_constructions/shared/data/repositories/entity_repository.dart';
+import 'package:bismillah_constructions/shared/data/repositories/ledger_repository.dart';
+import 'package:bismillah_constructions/shared/data/sync/sync_service.dart'
     show serverTimestampIsNewer;
 
 late Database _db;

@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'app.dart';
-import 'core/app_restart.dart';
-import 'core/constants.dart';
-import 'core/error_reporter.dart';
+import 'package:bismillah_constructions/mobile/app.dart';
+import 'package:bismillah_constructions/shared/core/app_restart.dart';
+import 'package:bismillah_constructions/shared/core/constants.dart';
+import 'package:bismillah_constructions/shared/core/error_reporter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

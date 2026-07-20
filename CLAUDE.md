@@ -24,11 +24,39 @@ construction projects". Offline-first; optional Supabase cloud sync
 for multi-device use.
 
 **Repo layout:** the Flutter app lives at the **repository root** —
-`lib/`, `android/`, `test/`, `pubspec.yaml` are all top-level. (It used
-to sit in a nested `bismillah_constructions/` folder; that was flattened
-away.) The only shipped platform is **Android** — `ios/`, `macos/`,
-`linux/`, `web/`, `windows/` were removed. `flutter create . --platforms=…`
-regenerates any of them if ever needed.
+`lib/`, `android/`, `windows/`, `test/`, `pubspec.yaml` are all top-level.
+Two shipped platforms now: **Android** (phone) and **Windows** (desktop).
+`ios/`, `macos/`, `linux/`, `web/` are not present; `flutter create .
+--platforms=…` regenerates any of them if ever needed.
+
+**`lib/` is split by platform:**
+
+- `lib/shared/` — platform-agnostic **`core/`**, **`data/`**, **`providers/`**.
+  All business logic, the ledger, models, DB, sync, providers. Imported by
+  both UIs. Pure Dart (no `package:flutter/*` in repositories).
+- `lib/mobile/` — the **Android** UI: `app.dart` + `features/` (bottom-nav
+  `HomeScreen`, the mobile screens). Entrypoint `lib/main.dart` (initialises
+  Supabase + cloud sync).
+- `lib/desktop/` — the **Windows** UI: `desktop_app.dart`, `desktop_shell.dart`
+  (retractable left `NavigationRail`), `desktop_theme.dart` (boxy Win-10
+  look), `tabs/` (one per rail destination, each a `TabScreenHost` with a
+  Win-10 sub-tab strip that embeds shared/mobile screens), `screens/`
+  (desktop-only screens like the Trial Balance), `widgets/`. Entrypoint
+  `lib/main_desktop.dart` — **local-only: no Supabase, no cloud sync**
+  (`SyncService` is inert because `SUPABASE_URL`/`ANON_KEY` aren't defined in
+  the desktop build; `syncNow()` returns immediately).
+
+The desktop UI **reuses** the shared providers and the mobile feature/report
+screens (embedded inside the rail tabs), so business logic and reports have
+one source of truth across both platforms.
+
+**Imports are `package:` absolute** (`package:bismillah_constructions/…`),
+enforced by the `always_use_package_imports` lint — so files can move between
+`shared/ mobile/ desktop/` without churning `../../` relative paths.
+
+Build the desktop app / installer via `scripts/build_windows.ps1`
+(`flutter build windows --release --target lib/main_desktop.dart`, then Inno
+Setup `installer/bismillah.iss`).
 
 ---
 
@@ -221,41 +249,41 @@ regenerates any of them if ever needed.
 
 ## Where things live
 
-- **Chart of accounts** — `lib/core/constants.dart` → `Accounts`.
+- **Chart of accounts** — `lib/shared/core/constants.dart` → `Accounts`.
   Also holds the `ServiceFeeType` and `ChangeAction` enums.
-- **Single ledger writer** — `lib/data/repositories/ledger_repository.dart`.
+- **Single ledger writer** — `lib/shared/data/repositories/ledger_repository.dart`.
 - **Result classes** — same file's `part` — `ledger_repository_models.dart`
   (`LabourRateClose` carries `feeType`).
-- **Provider barrel** — `lib/providers/providers.dart` re-exports every
+- **Provider barrel** — `lib/shared/providers/providers.dart` re-exports every
   provider. Always import the barrel, not the split files.
-- **AccountSummary** — `lib/providers/account_summary.dart`. Every
+- **AccountSummary** — `lib/shared/providers/account_summary.dart`. Every
   derived dashboard number.
-- **Cash Runway** — `lib/providers/cash_runway.dart`.
+- **Cash Runway** — `lib/shared/providers/cash_runway.dart`.
 - **Entities + operational memory** — `entity_repository.dart` owns
   suppliers, banks, projects (incl. `whatsapp`, `serviceFeeType`,
   `serviceFeeAmount`), material/labour type defs, counter entities,
   notes, follow-ups, the `change_log` writer (`logChange`), and the
   cloud-sync cursors (incl. `resetPullCursors` / `resetPushCursors`).
-- **Searchable pickers** — `lib/features/common/searchable_dropdown.dart`
+- **Searchable pickers** — `lib/mobile/features/common/searchable_dropdown.dart`
   (`SearchableDropdown<T>`, a type-ahead `DropdownMenu` wrapped in a
   `FormField` so `Form.validate()` still fires, with external-value sync)
   replaces every entity `DropdownButtonFormField`;
-  `lib/features/common/searchable_list.dart` (`SearchableList<T>`) is the
+  `lib/mobile/features/common/searchable_list.dart` (`SearchableList<T>`) is the
   search-box-over-a-filtered-list used by the entity-management and
   ledger-picker screens. Always reach for these, not a bare dropdown/list.
-- **Error reporting** — `lib/core/error_reporter.dart`. Note the
+- **Error reporting** — `lib/shared/core/error_reporter.dart`. Note the
   SnackBar's "Details" dialog opens through `ErrorReporter.navigatorKey`
   (wired to `MaterialApp.navigatorKey` in `app.dart`), **not** the
   ScaffoldMessenger context — the messenger sits above the Navigator, so
   `showDialog` off it throws "No Navigator widget found".
-- **WhatsApp deep-link helper** — `lib/core/whatsapp.dart`
+- **WhatsApp deep-link helper** — `lib/shared/core/whatsapp.dart`
   (`normalizeWhatsAppNumber`, `launchWhatsApp`). The post-transaction
   prompt lives in `transaction_form_screen.dart`.
-- **Backup / restore** — `lib/data/services/backup_service.dart`; UI in
+- **Backup / restore** — `lib/shared/data/services/backup_service.dart`; UI in
   `settings/backups_list_screen.dart` and `common/restore_gateway.dart`.
-- **Migrations** — `lib/data/db/local_db.dart` `_migrate`. v1..v20
+- **Migrations** — `lib/shared/data/db/local_db.dart` `_migrate`. v1..v20
   (v20 = the local-only `pending_pull` orphan-retry buffer).
-- **Cloud sync** — `lib/data/sync/sync_service.dart` (`syncNow`,
+- **Cloud sync** — `lib/shared/data/sync/sync_service.dart` (`syncNow`,
   `fullRepull`, `fullRepush`, `diagnostics`, `SyncTableDiag`, plus the
   `pending_pull` buffer helpers `_bufferOrphans` / `_flushPending`).
   Settings UI (incl. Re-pull / Re-push everything) in
