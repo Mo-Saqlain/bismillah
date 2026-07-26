@@ -15,8 +15,10 @@ class BismillahApp extends ConsumerWidget {
     ref.watch(syncServiceFutureProvider);
     // Cold-boot silent backup (>6h since last).
     ref.watch(backupBootCheckProvider);
-    // Wire every transaction commit to a debounced cloud + Supabase sync.
+    // Push every local mutation to Supabase immediately.
     ref.watch(commitSyncWiringProvider);
+    // Pull remote changes (Realtime + poll) into the UI live.
+    ref.watch(remoteRefreshWiringProvider);
 
     final mode = ref.watch(themeModeProvider);
 

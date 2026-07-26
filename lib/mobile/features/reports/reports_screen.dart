@@ -14,6 +14,7 @@ import 'package:bismillah_constructions/mobile/features/reports/project_ledger_s
 import 'package:bismillah_constructions/mobile/features/reports/project_profitability_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/supplier_ledger_picker_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/supplier_spending_screen.dart';
+import 'package:bismillah_constructions/mobile/features/reports/trial_balance_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/wage_ledger_screen.dart';
 
 /// Reports landing page. Tiles are grouped into sections so the list stays
@@ -169,6 +170,15 @@ class ReportsScreen extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                     builder: (_) => const MaterialPriceTrendScreen())),
+          ),
+          _ReportTile(
+            icon: Icons.balance,
+            color: Colors.blueGrey,
+            title: 'Trial Balance',
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const TrialBalanceScreen())),
           ),
         ],
       ),

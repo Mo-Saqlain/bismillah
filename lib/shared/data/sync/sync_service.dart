@@ -130,9 +130,22 @@ class SyncService {
   SyncStatus _last = SyncStatus.initial;
   SyncStatus get currentStatus => _last;
 
+  /// Fires (with no payload) every time a pull or a Realtime event applies at
+  /// least one remote row to local SQLite. A wiring provider listens to this
+  /// and bumps `ledgerVersionProvider` so every open screen refetches — the
+  /// piece that makes cross-device changes appear live instead of only after
+  /// the next local edit.
+  final _dataChangedCtrl = StreamController<void>.broadcast();
+  Stream<void> get dataChanged => _dataChangedCtrl.stream;
+
   StreamSubscription? _connSub;
   Timer? _ticker;
   bool _syncing = false;
+
+  /// Realtime subscription channels (one per synced table). Established once,
+  /// on the first successful online sync, and torn down in [dispose].
+  final List<RealtimeChannel> _channels = [];
+  bool _realtimeSubscribed = false;
 
   void start() {
     if (!SupabaseConfig.configured) {
@@ -145,13 +158,39 @@ class SyncService {
     _connSub = Connectivity()
         .onConnectivityChanged
         .listen((_) => unawaited(syncNow()));
-    _ticker = Timer.periodic(const Duration(minutes: 2), (_) => syncNow());
-    unawaited(syncNow());
+    // Safety-net poll. Realtime delivers remote changes within ~1s and local
+    // mutations push immediately, so this is only a backstop for the rare case
+    // Realtime drops (publication not enabled, socket lost) — kept short so
+    // the app still feels near-live in that degraded mode.
+    _ticker = Timer.periodic(const Duration(seconds: 30), (_) => syncNow());
+    unawaited(_bootSync());
+  }
+
+  /// First sync of the launch: force a full re-pull so a fresh — or any —
+  /// install converges to the COMPLETE cloud dataset before Realtime takes
+  /// over for live deltas. This is what guarantees "every device gets all the
+  /// data" regardless of how stale its pull cursors were. Idempotent: pulls
+  /// are last-write-wins, so re-downloading rows the device already has is a
+  /// no-op.
+  Future<void> _bootSync() async {
+    try {
+      if (await _entities.cloudSyncEnabled()) {
+        await _entities.resetPullCursors();
+      }
+    } catch (_) {/* fall through to a normal sync */}
+    await syncNow();
   }
 
   void dispose() {
+    for (final c in _channels) {
+      try {
+        unawaited(Supabase.instance.client.removeChannel(c));
+      } catch (_) {/* client may already be torn down */}
+    }
+    _channels.clear();
     _connSub?.cancel();
     _ticker?.cancel();
+    _dataChangedCtrl.close();
     _statusCtrl.close();
   }
 
@@ -189,7 +228,12 @@ class SyncService {
   /// one-shot manual sync from Settings even when background sync is off.
   /// The automatic triggers (ticker, connectivity, commit listener) never
   /// pass it, so they still respect the toggle.
-  Future<void> syncNow({bool force = false}) async {
+  ///
+  /// [pushOnly] uploads local changes but skips the pull pass. Used by the
+  /// per-mutation trigger: outbound changes must reach the cloud instantly,
+  /// but inbound changes already arrive via Realtime, so pulling on every
+  /// keystroke-level edit would be wasted round-trips.
+  Future<void> syncNow({bool force = false, bool pushOnly = false}) async {
     if (!SupabaseConfig.configured) return;
     // Fast path: the DB can be closed underneath us during a restore/restart
     // (LocalDb.reinitialize() closes it, then restartApp() rebuilds the
@@ -235,13 +279,18 @@ class SyncService {
         for (final table in _kSyncTables) {
           await _pushTable(client, table, tenantId);
         }
-        for (final table in _kSyncTables) {
-          await _pullTable(client, table, tenantId);
+        if (!pushOnly) {
+          for (final table in _kSyncTables) {
+            await _pullTable(client, table, tenantId);
+          }
+          // Retry any rows previously skipped for a missing FK parent — the
+          // parent may have just arrived in the pulls above (or via a re-push
+          // from the device that owns it). Runs last so parents are present.
+          await _flushPending();
+          // Establish the live Realtime subscriptions once the first full
+          // pull has completed, so subsequent remote edits stream in live.
+          await _ensureRealtime(client, tenantId);
         }
-        // Retry any rows previously skipped for a missing FK parent — the
-        // parent may have just arrived in the pulls above (or via a re-push
-        // from the device that owns it). Runs last so parents are present.
-        await _flushPending();
 
         _emit(SyncStatus(
           state: SyncState.idle,
@@ -387,55 +436,8 @@ class SyncService {
       final rows = (response as List).cast<Map<String, dynamic>>();
       if (rows.isEmpty) break;
 
-      final db = _ledger.db;
-      final orphans = <Map<String, Object?>>[];
-      await db.transaction((txn) async {
-        for (final r in rows) {
-          final local = _fromRemote(r, table);
-          // Last-write-wins: Supabase is the source of truth for the latest
-          // edit. A brand-new id inserts; an existing id is overwritten only
-          // when the server row's `updated_at` is strictly newer than the
-          // local one (so a genuine local edit made offline isn't clobbered
-          // by a stale server copy). Edits and soft-deletes therefore
-          // propagate across devices, while everything stays offline-capable.
-          //
-          // Safe against ping-pong: migration 0005 drops the server-side
-          // auto-bump trigger, so re-pushing a just-pulled row is a no-op
-          // upsert that doesn't change its timestamp.
-          final id = local['id'];
-          // A child row (e.g. material_inventory / journal_entries) can arrive
-          // before/without its FK parent — the parent may not be on the server
-          // yet (a parent that only ever lived on one device and never pushed).
-          // Skip just that row instead of aborting the page, and buffer it in
-          // `pending_pull` so a later sync re-inserts it the moment the parent
-          // lands (see _flushPending). A caught constraint error rolls back
-          // only its own statement, so the transaction stays live.
-          try {
-            final existing = await txn.query(table,
-                columns: ['updated_at'],
-                where: 'id = ?',
-                whereArgs: [id],
-                limit: 1);
-            if (existing.isEmpty) {
-              await txn.insert(table, local,
-                  conflictAlgorithm: ConflictAlgorithm.replace);
-            } else if (serverTimestampIsNewer(local['updated_at'] as String?,
-                existing.first['updated_at'] as String?)) {
-              await txn.update(table, local, where: 'id = ?', whereArgs: [id]);
-            }
-          } catch (e) {
-            if (_isForeignKeyError(e)) {
-              orphans.add(local);
-            } else {
-              rethrow;
-            }
-          }
-        }
-      });
-
-      if (orphans.isNotEmpty) {
-        await _bufferOrphans(table, orphans);
-      }
+      final applied = await _applyRemoteRows(table, rows);
+      if (applied > 0) _dataChangedCtrl.add(null);
 
       for (final r in rows) {
         final u = r['updated_at'] as String?;
@@ -452,6 +454,116 @@ class SyncService {
     if (finalMax != null) {
       final parsed = DateTime.tryParse(finalMax);
       if (parsed != null) await _entities.setPullCursor(table, parsed);
+    }
+  }
+
+  /// Applies remote rows to local SQLite under last-write-wins, returning how
+  /// many actually inserted/updated. Shared by the pull pass and the Realtime
+  /// handler so both use identical conflict rules.
+  ///
+  /// Last-write-wins: Supabase is the source of truth for the latest edit. A
+  /// brand-new id inserts; an existing id is overwritten only when the server
+  /// row's `updated_at` is strictly newer than the local one (so a genuine
+  /// offline local edit isn't clobbered by a stale server copy). Edits and
+  /// soft-deletes therefore propagate across devices while staying
+  /// offline-capable. Safe against ping-pong: migration 0005 drops the
+  /// server-side auto-bump trigger, so re-pushing a just-pulled row is a no-op
+  /// upsert that doesn't change its timestamp.
+  ///
+  /// A child row (material_inventory / journal_entries) can arrive before its
+  /// FK parent — the parent may not be on the server yet. Such a row is
+  /// skipped (not aborting the batch) and buffered in `pending_pull` so a
+  /// later sync re-inserts it the moment the parent lands (see _flushPending).
+  Future<int> _applyRemoteRows(
+      String table, List<Map<String, dynamic>> rows) async {
+    if (rows.isEmpty) return 0;
+    final db = _ledger.db;
+    final orphans = <Map<String, Object?>>[];
+    var applied = 0;
+    await db.transaction((txn) async {
+      for (final r in rows) {
+        final local = _fromRemote(r, table);
+        final id = local['id'];
+        try {
+          final existing = await txn.query(table,
+              columns: ['updated_at'],
+              where: 'id = ?',
+              whereArgs: [id],
+              limit: 1);
+          if (existing.isEmpty) {
+            await txn.insert(table, local,
+                conflictAlgorithm: ConflictAlgorithm.replace);
+            applied++;
+          } else if (serverTimestampIsNewer(local['updated_at'] as String?,
+              existing.first['updated_at'] as String?)) {
+            await txn.update(table, local, where: 'id = ?', whereArgs: [id]);
+            applied++;
+          }
+        } catch (e) {
+          if (_isForeignKeyError(e)) {
+            orphans.add(local);
+          } else {
+            rethrow;
+          }
+        }
+      }
+    });
+    if (orphans.isNotEmpty) await _bufferOrphans(table, orphans);
+    return applied;
+  }
+
+  // ── Realtime (live inbound) ────────────────────────────────────────────
+
+  /// Subscribe once to Postgres change events for every synced table, scoped
+  /// to this tenant. Remote inserts/updates then stream into local SQLite
+  /// within ~1s (soft-deletes arrive as ordinary UPDATEs). Requires the tables
+  /// to be in the `supabase_realtime` publication (supabase/migrations/0006).
+  /// If that publication step hasn't been applied the subscription is simply
+  /// silent — the 30-second poll keeps things converging in that degraded mode.
+  Future<void> _ensureRealtime(SupabaseClient client, String tenantId) async {
+    if (_realtimeSubscribed) return;
+    _realtimeSubscribed = true;
+    for (final table in _kSyncTables) {
+      final channel = client.channel('rt:$table');
+      channel.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: table,
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'tenant_id',
+          value: tenantId,
+        ),
+        callback: (payload) {
+          final rec = payload.newRecord;
+          if (rec.isNotEmpty) {
+            unawaited(_onRealtimeChange(table, Map<String, dynamic>.from(rec)));
+          }
+        },
+      );
+      channel.subscribe();
+      _channels.add(channel);
+    }
+  }
+
+  /// Handle a single Realtime row: apply it locally (LWW) and, if it actually
+  /// changed something, signal the UI to refetch and flush any orphans it may
+  /// have just unblocked. Pull cursors are intentionally NOT advanced here — a
+  /// later poll re-touching the same row is a cheap no-op and avoids skipping a
+  /// row if events arrive out of order.
+  Future<void> _onRealtimeChange(
+      String table, Map<String, dynamic> row) async {
+    if (!_ledger.db.isOpen) return;
+    try {
+      final applied = await _applyRemoteRows(table, [row]);
+      if (applied > 0) {
+        _dataChangedCtrl.add(null);
+        await _flushPending();
+      }
+    } catch (e) {
+      if (!_isDatabaseClosed(e)) {
+        ErrorReporter.report(e, source: 'Realtime');
+      }
     }
   }
 

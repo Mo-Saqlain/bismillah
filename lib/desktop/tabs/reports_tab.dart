@@ -4,7 +4,7 @@ import 'package:bismillah_constructions/mobile/features/reports/balance_sheet_sc
 import 'package:bismillah_constructions/mobile/features/reports/cash_flow_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/income_statement_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/income_trend_screen.dart';
-import 'package:bismillah_constructions/desktop/screens/trial_balance_screen.dart';
+import 'package:bismillah_constructions/mobile/features/reports/trial_balance_screen.dart';
 import 'package:bismillah_constructions/desktop/widgets/tab_screen_host.dart';
 
 /// Cross-cutting financial statements only. Entity-specific reports/ledgers

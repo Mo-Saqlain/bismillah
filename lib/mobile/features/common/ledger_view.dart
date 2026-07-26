@@ -122,7 +122,7 @@ class LedgerView extends StatelessWidget {
                   Row(
                     children: [
                       const _H('Date', flex: 3),
-                      _H(particularsHeader, flex: 4),
+                      _H(particularsHeader, flex: 5),
                       _H(debitHeader, flex: 2, right: true),
                       _H(creditHeader, flex: 2, right: true),
                       _H(balanceHeader, flex: 3, right: true),
@@ -133,9 +133,13 @@ class LedgerView extends StatelessWidget {
                     (r) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
+                        // Top-align so a multi-line memo (shown in full)
+                        // reads next to the date/amounts instead of pushing
+                        // them to the vertical centre of a tall row.
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _C(fmtDate(r.date), flex: 3),
-                          _C(r.memo, flex: 4),
+                          _C(r.memo, flex: 5, wrap: true),
                           _C(
                             r.debit > 0 ? fmtMoney(r.debit) : '',
                             flex: 2,
@@ -225,12 +229,19 @@ class _C extends StatelessWidget {
     required this.flex,
     this.right = false,
     this.bold = false,
+    this.wrap = false,
     this.color,
   });
   final String text;
   final int flex;
   final bool right;
   final bool bold;
+
+  /// When true the cell wraps to as many lines as the text needs and is
+  /// never truncated — used for the Particulars/memo column so the full
+  /// description is always visible (the operator asked to see the whole
+  /// memo, not an ellipsized preview).
+  final bool wrap;
   final Color? color;
   @override
   Widget build(BuildContext context) {
@@ -247,8 +258,9 @@ class _C extends StatelessWidget {
     return Expanded(
       flex: flex,
       // Money columns (right-aligned) scale down so no digits are lost;
-      // text columns (date/memo) ellipsize. Either way the cell never
-      // overflows or silently clips at a large OS text scale.
+      // wrap columns (memo) show the full text across multiple lines; other
+      // text columns (date) ellipsize. Either way the cell never overflows
+      // or silently clips at a large OS text scale.
       child: right
           ? FittedBox(
               fit: BoxFit.scaleDown,
@@ -257,8 +269,8 @@ class _C extends StatelessWidget {
             )
           : Text(
               text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              maxLines: wrap ? null : 1,
+              overflow: wrap ? TextOverflow.clip : TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 12,
                 color: color,

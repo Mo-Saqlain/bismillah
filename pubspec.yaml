@@ -61,6 +61,12 @@ flutter_launcher_icons:
   ios: false
   image_path: "assets/logo.png"
   min_sdk_android: 21
+  # Windows desktop: generate resources\app_icon.ico from the same logo so the
+  # taskbar / title-bar / installer icon matches the Android launcher icon.
+  windows:
+    generate: true
+    image_path: "assets/logo.png"
+    icon_size: 256
 
 flutter:
   uses-material-design: true

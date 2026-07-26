@@ -1,5 +1,10 @@
-# Builds the Windows desktop app (local-only, no Supabase) and, if Inno
-# Setup is installed, compiles the single-file installer.
+# Builds the Windows desktop app and, if Inno Setup is installed, compiles the
+# single-file installer.
+#
+# Cloud sync: if secrets\dart_defines.json exists (same file the mobile
+# run/build script uses), its Supabase URL / anon key / tenant id are baked in
+# and the desktop app syncs in real time with every phone. If the file is
+# absent the app builds local-only, exactly as before.
 #
 # Usage (from repo root):
 #   powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
@@ -15,8 +20,17 @@ Set-Location $repoRoot
 Write-Host '==> flutter pub get' -ForegroundColor Cyan
 flutter pub get
 
+$defines = Join-Path $repoRoot 'secrets\dart_defines.json'
+$buildArgs = @('build', 'windows', '--release', '--target', 'lib/main_desktop.dart')
+if (Test-Path $defines) {
+  Write-Host "==> Cloud sync ON (using $defines)" -ForegroundColor Cyan
+  $buildArgs += "--dart-define-from-file=secrets/dart_defines.json"
+} else {
+  Write-Warning 'secrets\dart_defines.json not found — building LOCAL-ONLY (no cloud sync).'
+}
+
 Write-Host '==> Building Windows release (desktop entrypoint)' -ForegroundColor Cyan
-flutter build windows --release --target lib/main_desktop.dart
+flutter @buildArgs
 if ($LASTEXITCODE -ne 0) { throw "flutter build failed ($LASTEXITCODE)" }
 
 $releaseDir = Join-Path $repoRoot 'build\windows\x64\runner\Release'
