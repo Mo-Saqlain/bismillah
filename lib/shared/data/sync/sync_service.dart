@@ -398,12 +398,32 @@ class SyncService {
     String? maxSeen;
     for (var i = 0; i < rows.length; i += batchSize) {
       final slice = rows.sublist(i, (i + batchSize).clamp(0, rows.length));
-      final payload = slice.map((r) => _toRemote(r, table, tenantId)).toList();
-      await client.from(table).upsert(payload);
-      for (final r in slice) {
-        final u = r['updated_at'] as String?;
-        if (u != null && (maxSeen == null || u.compareTo(maxSeen) > 0)) {
-          maxSeen = u;
+      try {
+        final payload = slice.map((r) => _toRemote(r, table, tenantId)).toList();
+        await client.from(table).upsert(payload);
+        for (final r in slice) {
+          final u = r['updated_at'] as String?;
+          if (u != null && (maxSeen == null || u.compareTo(maxSeen) > 0)) {
+            maxSeen = u;
+          }
+        }
+      } catch (e) {
+        // Poison-pill outbox isolation: fall back to item-by-item push so one
+        // failing row payload doesn't freeze the rest of the pending sync queue.
+        for (final r in slice) {
+          try {
+            final singlePayload = _toRemote(r, table, tenantId);
+            await client.from(table).upsert(singlePayload);
+            final u = r['updated_at'] as String?;
+            if (u != null && (maxSeen == null || u.compareTo(maxSeen) > 0)) {
+              maxSeen = u;
+            }
+          } catch (itemError) {
+            ErrorReporter.report(
+              'Failed to push $table row ${r['id']}: $itemError',
+              source: 'Sync',
+            );
+          }
         }
       }
     }

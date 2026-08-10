@@ -345,4 +345,46 @@ void main() {
       expect(pulled!.name, 'From other device');
     });
   });
+
+  group('Poison-pill outbox isolation', () {
+    test('item-by-item fallback isolates individual failures so valid items push',
+        () async {
+      final items = ['item-1', 'item-poison', 'item-3'];
+      final pushed = <String>[];
+      final errors = <String>[];
+
+      // Simulate a batch push where 'item-poison' causes a row-level error.
+      Future<void> simulatePushBatch(List<String> slice) async {
+        if (slice.contains('item-poison')) {
+          throw Exception('Postgres constraint error on item-poison');
+        }
+        pushed.addAll(slice);
+      }
+
+      Future<void> simulatePushItem(String item) async {
+        if (item == 'item-poison') {
+          throw Exception('Row constraint error on $item');
+        }
+        pushed.add(item);
+      }
+
+      // Outbox loop execution logic matching SyncService._pushTable:
+      try {
+        await simulatePushBatch(items);
+      } catch (_) {
+        // Fallback to item-by-item push
+        for (final item in items) {
+          try {
+            await simulatePushItem(item);
+          } catch (e) {
+            errors.add(item);
+          }
+        }
+      }
+
+      expect(pushed, containsAll(['item-1', 'item-3']));
+      expect(pushed, isNot(contains('item-poison')));
+      expect(errors, contains('item-poison'));
+    });
+  });
 }

@@ -62,7 +62,7 @@ final commitSyncWiringProvider = FutureProvider<void>((ref) async {
   ledger.addCommitListener(onCommit);
   ref.onDispose(() => ledger.removeCommitListener(onCommit));
 
-  ref.listen<int>(ledgerVersionProvider, (_, __) {
+  ref.listen<int>(ledgerVersionProvider, (previous, next) {
     unawaited(sync.syncNow(pushOnly: true));
   });
 });
