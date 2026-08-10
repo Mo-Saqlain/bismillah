@@ -585,6 +585,19 @@ class LedgerRepository {
     _fireCommit();
   }
 
+  /// Completely wipe all transaction and activity data from the database.
+  Future<void> wipeAllData() async {
+    await _db.transaction((txn) async {
+      await txn.delete('journal_entries');
+      await txn.delete('material_inventory');
+      await txn.delete('change_log');
+      await txn.delete('sync_queue');
+      await txn.delete('pending_pull');
+      await txn.delete('counter_entities');
+    });
+    _fireCommit();
+  }
+
   // -------------------- Reads --------------------
 
   /// Live entries — excludes soft-deleted by default.

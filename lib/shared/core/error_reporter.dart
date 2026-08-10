@@ -138,7 +138,11 @@ class ErrorReporter {
                 ),
                 actions: [
                   TextButton(
-                    onPressed: () => Navigator.pop(dialogCtx),
+                    onPressed: () {
+                      if (dialogCtx.mounted) {
+                        Navigator.of(dialogCtx).pop();
+                      }
+                    },
                     child: const Text('Close'),
                   ),
                 ],

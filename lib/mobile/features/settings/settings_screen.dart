@@ -447,6 +447,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const _CloudSyncCard(),
             const SizedBox(height: 12),
           ],
+          _SectionTitle('Danger Zone'),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.cleaning_services, color: Colors.red),
+              title: const Text('Wipe All Transactions (Reset Data)'),
+              subtitle: const Text(
+                'Clears all transactions, journal entries, material inventory, and activity logs to start clean.',
+              ),
+              onTap: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Wipe all transaction data?'),
+                    content: const Text(
+                      'This will permanently delete all journal entries, transactions, material inventory, and change logs. '
+                      'This action CANNOT be undone.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          if (ctx.mounted) Navigator.pop(ctx, false);
+                        },
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
+                        onPressed: () {
+                          if (ctx.mounted) Navigator.pop(ctx, true);
+                        },
+                        child: const Text('Wipe Data'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm != true) return;
+                if (!context.mounted) return;
+                try {
+                  final messenger = ScaffoldMessenger.of(context);
+                  final ledger = await ref.read(ledgerRepoProvider.future);
+                  await ledger.wipeAllData();
+                  bumpLedger(ref);
+                  messenger.showSnackBar(
+                    const SnackBar(content: Text('All transaction data wiped successfully')),
+                  );
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Wipe failed: $e')),
+                    );
+                  }
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
           _SectionTitle('Audit'),
           Card(
             child: ListTile(

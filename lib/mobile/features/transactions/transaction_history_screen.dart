@@ -286,60 +286,64 @@ class _TransactionHistoryScreenState
         child: SingleChildScrollView(
           child: Wrap(
             children: [
-              if (!isDeleted)
-                ListTile(
-                  leading: const Icon(Icons.delete_forever, color: Colors.red),
-                  title: const Text('Delete (permanent)'),
-                  subtitle: const Text(
-                    'Removes both ledger rows. Original payload kept in change_log for audit.',
-                  ),
-                  onTap: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    Navigator.pop(sheetCtx);
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Delete this transaction?'),
-                        content: const Text(
-                          'Both rows of this transaction will be removed from the ledger. '
-                          'A copy is preserved in the audit log.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx, false),
-                            child: const Text('Cancel'),
-                          ),
-                          FilledButton(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.red,
-                            ),
-                            onPressed: () => Navigator.pop(ctx, true),
-                            child: const Text('Delete'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirm != true) return;
-                    try {
-                      final ledger = await ref.read(ledgerRepoProvider.future);
-                      await ledger.hardDeleteTransaction(txnId);
-                      bumpLedger(ref);
-                      messenger.showSnackBar(
-                        const SnackBar(content: Text('Transaction deleted')),
-                      );
-                    } catch (e) {
-                      messenger.showSnackBar(
-                        SnackBar(content: Text('Delete failed: $e')),
-                      );
-                    }
-                  },
+              // Hard delete (permanent) is available for all entries (active, reversed, or soft-deleted)
+              ListTile(
+                leading: const Icon(Icons.delete_forever, color: Colors.red),
+                title: const Text('Hard delete (permanent)'),
+                subtitle: const Text(
+                  'Removes both ledger rows permanently. Original payload kept in change_log for audit.',
                 ),
+                onTap: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Hard delete this transaction?'),
+                      content: const Text(
+                        'Both rows of this transaction will be permanently removed from the ledger. '
+                        'A copy is preserved in the audit log.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            if (ctx.mounted) Navigator.pop(ctx, false);
+                          },
+                          child: const Text('Cancel'),
+                        ),
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.red,
+                          ),
+                          onPressed: () {
+                            if (ctx.mounted) Navigator.pop(ctx, true);
+                          },
+                          child: const Text('Delete Permanently'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirm != true) return;
+                  try {
+                    final ledger = await ref.read(ledgerRepoProvider.future);
+                    await ledger.hardDeleteTransaction(txnId);
+                    bumpLedger(ref);
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Transaction permanently deleted')),
+                    );
+                  } catch (e) {
+                    messenger.showSnackBar(
+                      SnackBar(content: Text('Delete failed: $e')),
+                    );
+                  }
+                },
+              ),
               if (!isDeleted)
                 ListTile(
                   leading: const Icon(Icons.delete_outline),
                   title: const Text('Soft delete (keeps audit row visible)'),
                   subtitle: const Text(
-                    'Marks the transaction as deleted but keeps it visible with strikethrough when "Show deleted" is on',
+                    'Marks the transaction as deleted (post reversal or active) but keeps it visible with strikethrough when "Show deleted" is on',
                   ),
                   onTap: () async {
                     final messenger = ScaffoldMessenger.of(context);
