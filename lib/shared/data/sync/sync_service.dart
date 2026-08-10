@@ -706,7 +706,7 @@ class SyncService {
   /// backfill data stranded by an older, buggier sync). Stored per-install in
   /// `app_settings` (not synced), so each device runs the backfill exactly
   /// once regardless of what other devices have done.
-  static const _pushBackfillMarker = 'orphan-fix-2026-07';
+  static const _pushBackfillMarker = 'orphan-fix-2026-08-b';
 
   Future<void> _ensurePushBackfill() async {
     const key = 'sync_push_backfill';
