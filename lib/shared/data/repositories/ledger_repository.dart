@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'package:bismillah_constructions/shared/core/constants.dart';
 import 'package:bismillah_constructions/shared/data/models/change_log.dart';
 import 'package:bismillah_constructions/shared/data/models/journal_entry.dart';
+import 'package:bismillah_constructions/shared/data/models/material_escalation.dart';
 import 'package:bismillah_constructions/shared/data/models/material_item.dart' show resolveMaterialLabel;
 
 // Result classes (CashFlowSummary, IncomeFigures, AgingReport, etc.)
@@ -2053,6 +2054,117 @@ class LedgerRepository {
           ));
     }
     return out;
+  }
+
+  // -------------------- Material Price Escalation --------------------
+
+  /// Calculates material price escalation and extra inflation surcharge
+  /// claimable for [projectId].
+  ///
+  /// For each material type purchased on this project:
+  ///   - Initial Baseline Rate is determined by the rate of the FIRST purchase
+  ///     or by [customBaselines] if explicitly provided.
+  ///   - For every subsequent purchase, rate increase over baseline is calculated
+  ///     and multiplied by quantity to yield the extra escalation amount.
+  Future<ProjectEscalationSummary> projectEscalationSummary(
+    String projectId, {
+    Map<String, double>? customBaselines,
+  }) async {
+    final projRows = await _db.query('projects',
+        columns: ['name', 'client_name', 'whatsapp'],
+        where: 'id = ?',
+        whereArgs: [projectId],
+        limit: 1);
+    final projectName =
+        projRows.isNotEmpty ? (projRows.first['name'] as String) : 'Project';
+    final clientName = projRows.isNotEmpty
+        ? (projRows.first['client_name'] as String?)
+        : null;
+    final clientWhatsApp = projRows.isNotEmpty
+        ? (projRows.first['whatsapp'] as String?)
+        : null;
+
+    final rows = await _db.rawQuery(
+      '''
+      SELECT m.id, m.material_type, m.unit, m.quantity, m.rate, m.total_cost,
+             m.created_at, m.supplier_id, s.name AS supplier_name
+      FROM material_inventory m
+      LEFT JOIN suppliers s ON m.supplier_id = s.id
+      WHERE m.project_id = ? AND m.txn_type = ? AND m.is_deleted = 0
+        AND m.rate IS NOT NULL AND m.quantity IS NOT NULL AND m.quantity > 0
+      ORDER BY m.created_at ASC
+      ''',
+      [projectId, MaterialTxnType.purchase.db],
+    );
+
+    final grouped = <String, List<Map<String, Object?>>>{};
+    for (final r in rows) {
+      final matType = r['material_type'] as String;
+      grouped.putIfAbsent(matType, () => []).add(r);
+    }
+
+    final items = <MaterialEscalationItem>[];
+
+    for (final entry in grouped.entries) {
+      final matType = entry.key;
+      final matRows = entry.value;
+      if (matRows.isEmpty) continue;
+
+      final unit = matRows.first['unit'] as String? ?? 'unit';
+      final firstRate = (matRows.first['rate'] as num).toDouble();
+      final baselineRate = customBaselines?[matType] ?? firstRate;
+
+      double latestRate = firstRate;
+      double maxRate = firstRate;
+      double totalQty = 0.0;
+      double totalCost = 0.0;
+      final purchases = <MaterialEscalationPurchase>[];
+
+      for (final r in matRows) {
+        final id = r['id'] as String;
+        final date = DateTime.parse(r['created_at'] as String);
+        final rate = (r['rate'] as num).toDouble();
+        final qty = (r['quantity'] as num).toDouble();
+        final cost = (r['total_cost'] as num).toDouble();
+        final suppId = r['supplier_id'] as String?;
+        final suppName = r['supplier_name'] as String?;
+
+        latestRate = rate;
+        if (rate > maxRate) maxRate = rate;
+        totalQty += qty;
+        totalCost += cost;
+
+        purchases.add(MaterialEscalationPurchase(
+          id: id,
+          date: date,
+          supplierId: suppId,
+          supplierName: suppName,
+          quantity: qty,
+          rate: rate,
+          totalCost: cost,
+          baselineRate: baselineRate,
+        ));
+      }
+
+      items.add(MaterialEscalationItem(
+        materialType: matType,
+        unit: unit,
+        baselineRate: baselineRate,
+        latestRate: latestRate,
+        maxRate: maxRate,
+        totalQuantity: totalQty,
+        totalActualCost: totalCost,
+        purchases: purchases,
+      ));
+    }
+
+    return ProjectEscalationSummary(
+      projectId: projectId,
+      projectName: projectName,
+      clientName: clientName,
+      clientWhatsApp: clientWhatsApp,
+      items: items,
+    );
   }
 
   // -------------------- Cash Runway --------------------

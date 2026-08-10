@@ -8,6 +8,7 @@ import 'package:bismillah_constructions/mobile/features/reports/bank_ledger_scre
 import 'package:bismillah_constructions/mobile/features/reports/cash_flow_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/income_statement_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/income_trend_screen.dart';
+import 'package:bismillah_constructions/mobile/features/reports/material_escalation_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/material_price_trend_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/project_bva_picker_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/project_ledger_screen.dart';
@@ -170,6 +171,15 @@ class ReportsScreen extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                     builder: (_) => const MaterialPriceTrendScreen())),
+          ),
+          _ReportTile(
+            icon: Icons.price_change,
+            color: Colors.teal,
+            title: 'Material Price Escalation Claim',
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const MaterialEscalationScreen())),
           ),
           _ReportTile(
             icon: Icons.balance,

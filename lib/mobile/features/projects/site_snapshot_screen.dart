@@ -11,6 +11,7 @@ import 'package:bismillah_constructions/shared/providers/providers.dart';
 import 'package:bismillah_constructions/mobile/features/followups/followups_screen.dart';
 import 'package:bismillah_constructions/mobile/features/notes/notes_panel.dart';
 import 'package:bismillah_constructions/mobile/features/projects/project_reconciliation_screen.dart';
+import 'package:bismillah_constructions/mobile/features/reports/material_escalation_screen.dart';
 
 /// Project Snapshot — the "where does this project stand right now?"
 /// landing for one project. Surfaces budget vs spend, customer position,
@@ -28,6 +29,18 @@ class SiteSnapshotScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(project.name),
         actions: [
+          if (project.model == ProjectModel.withMaterial)
+            IconButton(
+              tooltip: 'Price Escalation Claim',
+              icon: const Icon(Icons.price_change),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      MaterialEscalationScreen(initialProject: project),
+                ),
+              ),
+            ),
           if (!project.archived)
             IconButton(
               tooltip: 'Reconcile & archive',

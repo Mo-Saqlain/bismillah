@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:bismillah_constructions/shared/data/models/journal_entry.dart';
+import 'package:bismillah_constructions/shared/data/models/material_escalation.dart';
 import 'package:bismillah_constructions/shared/data/repositories/ledger_repository.dart';
 import 'package:bismillah_constructions/shared/providers/db_providers.dart';
 
@@ -29,4 +30,16 @@ final overallDailySpendProvider =
   final repo = await ref.watch(ledgerRepoProvider.future);
   return repo.overallDailySpend(daysBack: 7);
 });
+
+final projectEscalationProvider = FutureProvider.family<
+    ProjectEscalationSummary,
+    ({String projectId, Map<String, double>? customBaselines})>((ref, arg) async {
+  ref.watch(ledgerVersionProvider);
+  final repo = await ref.watch(ledgerRepoProvider.future);
+  return repo.projectEscalationSummary(
+    arg.projectId,
+    customBaselines: arg.customBaselines,
+  );
+});
+
 
