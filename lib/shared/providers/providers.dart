@@ -10,4 +10,7 @@ export 'db_providers.dart';
 export 'entity_providers.dart';
 export 'ledger_read_providers.dart';
 export 'sync_providers.dart';
+export 'payables_receivables_provider.dart';
 export 'theme_provider.dart';
+
+

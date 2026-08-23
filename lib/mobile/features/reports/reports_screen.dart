@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:bismillah_constructions/mobile/features/home/home_screen.dart' show kPillNavReservedHeight;
 import 'package:bismillah_constructions/mobile/features/reports/aging_analysis_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/aging_receivables_screen.dart';
+import 'package:bismillah_constructions/mobile/features/reports/payables_receivables_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/balance_sheet_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/bank_ledger_screen.dart';
 import 'package:bismillah_constructions/mobile/features/reports/cash_flow_screen.dart';
@@ -115,11 +116,21 @@ class ReportsScreen extends StatelessWidget {
                 MaterialPageRoute(
                     builder: (_) => const IncomeTrendScreen())),
           ),
-          _SectionTitle('Aging'),
+          _SectionTitle('Aging & Balances'),
+          _ReportTile(
+            icon: Icons.account_balance_wallet_outlined,
+            color: Colors.purple,
+            title: 'All Payables & Receivables Hub',
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const PayablesReceivablesScreen())),
+          ),
           _ReportTile(
             icon: Icons.hourglass_bottom,
             color: Colors.red,
             title: 'Aging — Payables',
+
             onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(

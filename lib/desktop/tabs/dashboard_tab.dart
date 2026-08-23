@@ -9,6 +9,8 @@ import 'package:bismillah_constructions/shared/data/repositories/ledger_reposito
     show DailySpend, ProjectAtRisk;
 import 'package:bismillah_constructions/shared/providers/providers.dart';
 import 'package:bismillah_constructions/desktop/desktop_theme.dart';
+import 'package:bismillah_constructions/mobile/features/reports/payables_receivables_screen.dart';
+
 
 /// Wide desktop dashboard. Reuses the shared providers (so numbers agree
 /// with the mobile app and every report) but lays them out for a large
@@ -65,8 +67,25 @@ class DashboardTab extends ConsumerWidget {
                         _Kpi(label: 'Net Liquidity', value: s.netLiquidity),
                         _Kpi(label: 'Net Worth', value: s.totalNetWorth),
                         _Kpi(label: 'Net Profit', value: s.netProfit),
-                        _Kpi(label: 'Payables', value: s.payables, negativeTint: true),
-                        _Kpi(label: 'Receivables', value: s.totalReceivables),
+                        _Kpi(
+                          label: 'Payables',
+                          value: s.payables,
+                          negativeTint: true,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const PayablesReceivablesScreen()),
+                          ),
+                        ),
+                        _Kpi(
+                          label: 'Receivables',
+                          value: s.totalReceivables,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const PayablesReceivablesScreen()),
+                          ),
+                        ),
                         if (s.customerDeposits > 0)
                           _Kpi(
                               label: 'Customer Deposits',
@@ -136,10 +155,16 @@ class DashboardTab extends ConsumerWidget {
 // ── KPI tile ────────────────────────────────────────────────────────────────
 
 class _Kpi extends StatelessWidget {
-  const _Kpi({required this.label, required this.value, this.negativeTint = false});
+  const _Kpi({
+    required this.label,
+    required this.value,
+    this.negativeTint = false,
+    this.onTap,
+  });
   final String label;
   final double value;
   final bool negativeTint;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +172,7 @@ class _Kpi extends StatelessWidget {
     final color = negativeTint
         ? BalanceColors.negative(context)
         : BalanceColors.signed(context, value);
-    return Container(
+    Widget content = Container(
       width: 196,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -158,13 +183,24 @@ class _Kpi extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label.toUpperCase(),
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.6,
-                color: scheme.onSurfaceVariant,
-              )),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(label.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
+                      color: scheme.onSurfaceVariant,
+                    )),
+              ),
+              if (onTap != null)
+                Icon(Icons.open_in_new, size: 12, color: scheme.onSurfaceVariant),
+            ],
+          ),
           const SizedBox(height: 8),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -176,6 +212,15 @@ class _Kpi extends StatelessWidget {
         ],
       ),
     );
+
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(DesktopRadii.medium),
+        child: content,
+      );
+    }
+    return content;
   }
 }
 
