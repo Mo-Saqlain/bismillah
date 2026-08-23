@@ -585,7 +585,7 @@ class LedgerRepository {
     _fireCommit();
   }
 
-  /// Completely wipe all transaction and activity data from the database.
+  /// Completely wipe all transaction and entity data from the local database.
   Future<void> wipeAllData() async {
     await _db.transaction((txn) async {
       await txn.delete('journal_entries');
@@ -593,6 +593,14 @@ class LedgerRepository {
       await txn.delete('change_log');
       await txn.delete('pending_pull');
       await txn.delete('counter_entities');
+      await txn.delete('projects');
+      await txn.delete('suppliers');
+      await txn.delete('banks');
+      await txn.delete('material_types');
+      await txn.delete('labour_types');
+      await txn.delete('notes');
+      await txn.delete('follow_ups');
+      await txn.delete('app_settings', where: "key LIKE 'cloud_%'");
     });
     _fireCommit();
   }

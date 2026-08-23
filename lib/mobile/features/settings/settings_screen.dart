@@ -451,47 +451,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.cleaning_services, color: Colors.red),
-              title: const Text('Wipe All Transactions (Reset Data)'),
+              title: const Text('Wipe All Data (Local & Cloud)'),
               subtitle: const Text(
-                'Clears all transactions, journal entries, material inventory, and activity logs to start clean.',
+                'Permanently clears all projects, transactions, inventory, notes and cloud data across all connected devices.',
               ),
               onTap: () async {
+                final repo = await ref.read(entityRepoProvider.future);
+                final tenant = await repo.tenantIdOrNull();
+                if (!context.mounted) return;
                 final confirm = await showDialog<bool>(
                   context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Wipe all transaction data?'),
-                    content: const Text(
-                      'This will permanently delete all journal entries, transactions, material inventory, and change logs. '
-                      'This action CANNOT be undone.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          if (ctx.mounted) Navigator.pop(ctx, false);
-                        },
-                        child: const Text('Cancel'),
-                      ),
-                      FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.red,
-                        ),
-                        onPressed: () {
-                          if (ctx.mounted) Navigator.pop(ctx, true);
-                        },
-                        child: const Text('Wipe Data'),
-                      ),
-                    ],
-                  ),
+                  builder: (ctx) => _WipeAllDataDialog(tenantId: tenant),
                 );
                 if (confirm != true) return;
                 if (!context.mounted) return;
                 try {
                   final messenger = ScaffoldMessenger.of(context);
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Wiping all local and cloud data across all devices…'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+
+                  if (SupabaseConfig.configured) {
+                    final syncSvc = await ref.read(syncServiceFutureProvider.future);
+                    await syncSvc.wipeCloudData();
+                  }
+
                   final ledger = await ref.read(ledgerRepoProvider.future);
                   await ledger.wipeAllData();
+                  await repo.resetPushCursors();
+                  await repo.resetPullCursors();
+
                   bumpLedger(ref);
+                  if (!context.mounted) return;
                   messenger.showSnackBar(
-                    const SnackBar(content: Text('All transaction data wiped successfully')),
+                    const SnackBar(
+                      content: Text('All local & cloud data successfully wiped across all devices ✓'),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 4),
+                    ),
                   );
                 } catch (e) {
                   if (context.mounted) {
@@ -1116,6 +1116,130 @@ class _SyncDiagnosticsDialog extends StatelessWidget {
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Multi-step, phrase-confirmed destructive wipe dialog.
+/// Requires checking the acknowledgment checkbox AND typing "DELETE EVERYTHING"
+/// before the destructive action button becomes active.
+class _WipeAllDataDialog extends StatefulWidget {
+  const _WipeAllDataDialog({required this.tenantId});
+  final String? tenantId;
+
+  @override
+  State<_WipeAllDataDialog> createState() => _WipeAllDataDialogState();
+}
+
+class _WipeAllDataDialogState extends State<_WipeAllDataDialog> {
+  static const _requiredPhrase = 'DELETE EVERYTHING';
+  final _controller = TextEditingController();
+  bool _understoodCheckbox = false;
+
+  bool get _canWipe =>
+      _understoodCheckbox && _controller.text.trim() == _requiredPhrase;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return AlertDialog(
+      scrollable: true,
+      icon: Icon(Icons.warning_amber_rounded, size: 44, color: scheme.error),
+      title: const Text('⚠️ DANGER ZONE: Wipe All Data'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: scheme.errorContainer.withOpacity(0.4),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: scheme.error.withOpacity(0.5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'CRITICAL WARNING',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: scheme.error,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  '• ALL local database records (projects, suppliers, banks, transactions, inventory, notes, follow-ups) will be PERMANENTLY DELETED from this device.\n'
+                  '• ALL cloud backups & Supabase remote database tables for this tenant will be DELETED from the cloud.\n'
+                  '• ALL connected phones, tablets & desktop apps sharing this Tenant ID will be WIPED as well.\n'
+                  '• THIS ACTION CANNOT BE UNDONE.',
+                  style: TextStyle(fontSize: 12.5, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (widget.tenantId != null) ...[
+            Text(
+              'Target Tenant ID: ${widget.tenantId}',
+              style: TextStyle(fontSize: 11.5, color: scheme.outline),
+            ),
+            const SizedBox(height: 10),
+          ],
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _understoodCheckbox,
+            activeColor: scheme.error,
+            onChanged: (v) => setState(() => _understoodCheckbox = v ?? false),
+            title: const Text(
+              'I understand that all local and cloud data will be PERMANENTLY DESTROYED across ALL connected devices.',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'To confirm, type "$_requiredPhrase" below:',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: _requiredPhrase,
+              border: const OutlineInputBorder(),
+              errorText: _controller.text.isNotEmpty &&
+                      _controller.text.trim() != _requiredPhrase
+                  ? 'Phrase must match "$_requiredPhrase" exactly'
+                  : null,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          style: FilledButton.styleFrom(
+            backgroundColor: scheme.error,
+            foregroundColor: scheme.onError,
+          ),
+          onPressed: _canWipe ? () => Navigator.pop(context, true) : null,
+          icon: const Icon(Icons.delete_forever),
+          label: const Text('WIPE EVERYTHING'),
         ),
       ],
     );

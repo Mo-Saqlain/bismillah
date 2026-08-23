@@ -702,6 +702,26 @@ class SyncService {
     await syncNow(force: true);
   }
 
+  /// Wipes all remote cloud records for the current tenant ID from Supabase.
+  /// Deletes in reverse table dependency order so child foreign key rows are
+  /// deleted before parents. When rows are deleted from Supabase Postgres,
+  /// Postgres Realtime broadcasts DELETE events to all connected devices.
+  Future<void> wipeCloudData() async {
+    if (!SupabaseConfig.configured) return;
+    try {
+      final client = Supabase.instance.client;
+      final tenantId = await _entities.ensureTenantId();
+      for (final table in _kSyncTables.reversed) {
+        await client.from(table).delete().eq('tenant_id', tenantId);
+      }
+      await _entities.resetPushCursors();
+      await _entities.resetPullCursors();
+    } catch (e, stack) {
+      ErrorReporter.report('Cloud wipe failed: $e', stack: stack, source: 'Sync');
+      rethrow;
+    }
+  }
+
   /// Bump this when a new build needs every install to re-push once (e.g. to
   /// backfill data stranded by an older, buggier sync). Stored per-install in
   /// `app_settings` (not synced), so each device runs the backfill exactly
