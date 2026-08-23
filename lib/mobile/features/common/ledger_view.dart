@@ -94,6 +94,9 @@ class LedgerView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final totalDebits = rows.fold<double>(0, (sum, r) => sum + r.debit);
+    final totalCredits = rows.fold<double>(0, (sum, r) => sum + r.credit);
+
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
@@ -168,6 +171,42 @@ class LedgerView extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const Divider(thickness: 1.5),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(
+                      children: [
+                        const _C('', flex: 3),
+                        const _C('TOTAL', flex: 5, bold: true),
+                        _C(
+                          fmtMoney(totalDebits),
+                          flex: 2,
+                          right: true,
+                          bold: true,
+                        ),
+                        _C(
+                          fmtMoney(totalCredits),
+                          flex: 2,
+                          right: true,
+                          bold: true,
+                        ),
+                        _C(
+                          signedTotal
+                              ? fmtSignedMoney(totalValue)
+                              : fmtMoney(totalValue),
+                          flex: 3,
+                          right: true,
+                          bold: true,
+                          color: signedTotal
+                              ? BalanceColors.signed(
+                                  context,
+                                  invertColorSign ? -totalValue : totalValue,
+                                )
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -182,21 +221,86 @@ class LedgerView extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                totalLabel,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total Debits',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: theme.colorScheme.onPrimaryContainer.withOpacity(0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        fmtMoney(totalDebits),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              Text(
-                signedTotal ? fmtSignedMoney(totalValue) : fmtMoney(totalValue),
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                  color: signedTotal
-                      ? BalanceColors.signed(
-                          context,
-                          invertColorSign ? -totalValue : totalValue,
-                        )
-                      : null,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Total Credits',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: theme.colorScheme.onPrimaryContainer.withOpacity(0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        fmtMoney(totalCredits),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      totalLabel,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onPrimaryContainer.withOpacity(0.9),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        signedTotal ? fmtSignedMoney(totalValue) : fmtMoney(totalValue),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          color: signedTotal
+                              ? BalanceColors.signed(
+                                  context,
+                                  invertColorSign ? -totalValue : totalValue,
+                                )
+                              : null,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
