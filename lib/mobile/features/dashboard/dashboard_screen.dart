@@ -2,17 +2,17 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:bismillah_constructions/shared/core/constants.dart';
 import 'package:bismillah_constructions/shared/core/formatters.dart';
 import 'package:bismillah_constructions/shared/core/theme.dart';
 import 'package:bismillah_constructions/shared/data/models/bank.dart';
 import 'package:bismillah_constructions/shared/data/repositories/ledger_repository.dart';
-import 'package:bismillah_constructions/shared/data/sync/sync_service.dart';
 import 'package:bismillah_constructions/shared/providers/providers.dart';
+import 'package:bismillah_constructions/shared/widgets/sync_indicator.dart';
 import 'package:bismillah_constructions/mobile/features/common/async_view.dart';
 import 'package:bismillah_constructions/mobile/features/followups/followups_screen.dart';
 import 'package:bismillah_constructions/mobile/features/home/home_screen.dart' show kPillNavReservedHeight;
 import 'package:bismillah_constructions/mobile/features/reports/bank_ledger_screen.dart';
+import 'package:bismillah_constructions/mobile/features/reports/payables_receivables_screen.dart';
 import 'package:bismillah_constructions/mobile/features/transactions/transaction_history_screen.dart';
 import 'package:bismillah_constructions/mobile/features/transactions/transaction_picker_screen.dart';
 
@@ -33,7 +33,7 @@ class DashboardScreen extends ConsumerWidget {
         automaticallyImplyLeading: false,
         title: const Text('Bismillah'),
         actions: [
-          _SyncIndicator(status: sync),
+          SyncIndicator(status: sync),
           const SizedBox(width: 8),
         ],
       ),
@@ -106,6 +106,12 @@ class DashboardScreen extends ConsumerWidget {
                           label: 'Payables',
                           value: s.payables,
                           positive: false,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PayablesReceivablesScreen(),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -114,6 +120,12 @@ class DashboardScreen extends ConsumerWidget {
                           label: 'Receivables',
                           value: s.totalReceivables,
                           positive: true,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PayablesReceivablesScreen(),
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -860,23 +872,32 @@ class _StatTile extends StatelessWidget {
     required this.label,
     required this.value,
     required this.positive,
+    this.onTap,
   });
   final String label;
   final double value;
   final bool positive;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = positive
         ? BalanceColors.positive(context)
         : BalanceColors.negative(context);
-    return Card(
+    Widget card = Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: Theme.of(context).textTheme.bodyMedium),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(label, style: Theme.of(context).textTheme.bodyMedium),
+                if (onTap != null)
+                  const Icon(Icons.open_in_new, size: 12, color: Colors.grey),
+              ],
+            ),
             const SizedBox(height: 4),
             Text(
               fmtMoney(value),
@@ -889,77 +910,15 @@ class _StatTile extends StatelessWidget {
         ),
       ),
     );
-  }
-}
 
-/// App-bar sync control. Doubles as a status light and a tap-to-sync
-/// button: the icon reflects the live [SyncStatus], and tapping it kicks a
-/// forced manual sync (so it works even when background sync is toggled off
-/// in Settings). Hidden entirely when Supabase isn't configured in this
-/// build — there's nothing to sync to.
-class _SyncIndicator extends ConsumerWidget {
-  const _SyncIndicator({required this.status});
-  final AsyncValue<SyncStatus> status;
-
-  Future<void> _sync(BuildContext context, WidgetRef ref) async {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Syncing with Supabase…'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-    final svc = await ref.read(syncServiceFutureProvider.future);
-    // force: true so a tap still syncs even when the background toggle is off.
-    await svc.syncNow(force: true);
-    final s = svc.currentStatus;
-    if (!context.mounted) return;
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(switch (s.state) {
-          SyncState.idle => 'Synced ✓',
-          SyncState.offline => 'Offline — will sync when back online',
-          SyncState.error => 'Sync failed: ${s.message ?? 'unknown error'}',
-          _ => 'Sync finished',
-        }),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (!SupabaseConfig.configured) return const SizedBox.shrink();
-    return status.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => IconButton(
-        icon: const Icon(Icons.cloud_off),
-        tooltip: 'Tap to retry sync',
-        onPressed: () => _sync(context, ref),
-      ),
-      data: (s) {
-        final (icon, label) = switch (s.state) {
-          SyncState.idle => (Icons.cloud_done, 'Synced'),
-          SyncState.syncing => (Icons.cloud_sync, 'Syncing…'),
-          SyncState.error => (Icons.cloud_off, 'Sync error'),
-          SyncState.offline => (Icons.cloud_off, 'Offline'),
-          SyncState.disabled => (Icons.cloud_outlined, 'Local'),
-        };
-        final syncing = s.state == SyncState.syncing;
-        return IconButton(
-          tooltip:
-              'Sync now · $label${s.pending > 0 ? ' · ${s.pending} pending' : ''}',
-          onPressed: syncing ? null : () => _sync(context, ref),
-          icon: syncing
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Icon(icon),
-        );
-      },
-    );
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: card,
+      );
+    }
+    return card;
   }
 }
 

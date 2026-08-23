@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:bismillah_constructions/shared/providers/providers.dart';
+import 'package:bismillah_constructions/shared/widgets/sync_indicator.dart';
 import 'package:bismillah_constructions/desktop/tabs/dashboard_tab.dart';
 import 'package:bismillah_constructions/desktop/tabs/labour_tab.dart';
 import 'package:bismillah_constructions/desktop/tabs/materials_tab.dart';
@@ -204,6 +205,8 @@ class _TopBar extends StatelessWidget {
                   fontSize: 14,
                 )),
             const Spacer(),
+            const SyncIndicator(),
+            const SizedBox(width: 4),
             IconButton(
               tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
               icon: Icon(isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),

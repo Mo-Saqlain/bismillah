@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:bismillah_constructions/mobile/features/settings/backups_list_screen.dart';
 import 'package:bismillah_constructions/mobile/features/settings/change_log_screen.dart';
 import 'package:bismillah_constructions/mobile/features/settings/recent_errors_screen.dart';
+import 'package:bismillah_constructions/mobile/features/settings/settings_screen.dart';
 import 'package:bismillah_constructions/desktop/widgets/tab_screen_host.dart';
 
 class SettingsTab extends StatelessWidget {
@@ -12,6 +13,8 @@ class SettingsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return TabScreenHost(
       screens: [
+        SubScreen(Icons.settings_outlined, 'General & Cloud Sync',
+            (_) => const SettingsScreen()),
         SubScreen(Icons.backup_outlined, 'Backups',
             (_) => const BackupsListScreen()),
         SubScreen(Icons.bug_report_outlined, 'Error Log',
