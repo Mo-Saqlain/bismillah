@@ -293,9 +293,14 @@ class SettingsKeys {
 }
 
 class SupabaseConfig {
-  static const url = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
-  static const anonKey =
-      String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
+  static const url = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://yuqbibwvpcbwvioazhtc.supabase.co',
+  );
+  static const anonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'sb_publishable_f-X8TXJ0d1rluU6E3n4YHQ_9EgfIO9m',
+  );
 
   /// Optional fixed tenant id baked into the build. When set, every install
   /// of this APK shares this one tenant, so cloud sync "just works" from the
@@ -304,8 +309,10 @@ class SupabaseConfig {
   /// operator; the anon key is already baked in, so this adds no new
   /// exposure). Leave empty to fall back to the legacy
   /// generate-a-random-tenant-once-per-install behaviour.
-  static const tenantId =
-      String.fromEnvironment('SUPABASE_TENANT_ID', defaultValue: '');
+  static const tenantId = String.fromEnvironment(
+    'SUPABASE_TENANT_ID',
+    defaultValue: '',
+  );
 
   static bool get configured => url.isNotEmpty && anonKey.isNotEmpty;
 }
