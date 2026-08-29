@@ -98,6 +98,8 @@ const _kSyncTables = <String>[
   'journal_entries',
   'notes',
   'follow_ups',
+  'app_users',
+  'access_requests',
 ];
 
 /// Bismillah's cloud-sync engine.

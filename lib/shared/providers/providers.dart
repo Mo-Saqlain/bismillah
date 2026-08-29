@@ -12,5 +12,6 @@ export 'ledger_read_providers.dart';
 export 'sync_providers.dart';
 export 'payables_receivables_provider.dart';
 export 'theme_provider.dart';
+export 'auth_provider.dart';
 
 

@@ -13,7 +13,7 @@ class LocalDb {
   /// through [open], which routes through [_onCreate] / [_onUpgrade] like
   /// normal.
   @visibleForTesting
-  Future<void> applySchemaForTests(Database db) => _onCreate(db, 20);
+  Future<void> applySchemaForTests(Database db) => _onCreate(db, 21);
 
   Database? _db;
   String? _dbPath;
@@ -49,7 +49,7 @@ class LocalDb {
     _db = await factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 20,
+        version: 21,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
         },
@@ -322,6 +322,34 @@ class LocalDb {
     await db.execute(
         'CREATE INDEX idx_followups_supplier ON follow_ups(supplier_id)');
 
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS app_users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user',
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        tenant_id TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS access_requests (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL,
+        full_name TEXT,
+        phone_or_email TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        is_deleted INTEGER NOT NULL DEFAULT 0,
+        tenant_id TEXT
+      )
+    ''');
+
     // v15: bump-on-update triggers powering the cloud-sync cursor. Mirror
     // of the migration in `_onUpgrade(< 15)` — they have to exist on
     // fresh installs too, not just upgrades.
@@ -336,6 +364,8 @@ class LocalDb {
       'counter_entities',
       'notes',
       'follow_ups',
+      'app_users',
+      'access_requests',
     ];
     for (final t in syncTables) {
       await db.execute('''
@@ -349,6 +379,9 @@ class LocalDb {
         END
       ''');
     }
+
+    // Seed default admin superuser (admin / Tech@123)
+    await _seedSuperuser(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -902,6 +935,90 @@ class LocalDb {
         ''');
       } catch (_) {/* table may already exist on partial upgrades */}
     }
+
+    if (oldVersion < 21) {
+      // v21: User creation & Access Requests tables + Superuser seeding
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS app_users (
+            id TEXT PRIMARY KEY,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'user',
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            is_deleted INTEGER NOT NULL DEFAULT 0,
+            tenant_id TEXT
+          )
+        ''');
+
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS access_requests (
+            id TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            full_name TEXT,
+            phone_or_email TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            is_deleted INTEGER NOT NULL DEFAULT 0,
+            tenant_id TEXT
+          )
+        ''');
+
+        for (final t in ['app_users', 'access_requests']) {
+          await db.execute('''
+            CREATE TRIGGER IF NOT EXISTS trg_bump_${t}_updated
+            AFTER UPDATE ON $t
+            FOR EACH ROW
+            WHEN NEW.updated_at = OLD.updated_at
+            BEGIN
+              UPDATE $t SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+              WHERE rowid = NEW.rowid;
+            END
+          ''');
+        }
+
+        await _seedSuperuser(db);
+      } catch (_) {/* tables may already exist */}
+    }
+  }
+
+  static Future<void> _seedSuperuser(Database db) async {
+    try {
+      final existing = await db.query(
+        'app_users',
+        where: 'username = ?',
+        whereArgs: ['admin'],
+      );
+      if (existing.isEmpty) {
+        // Hash for password "Tech@123"
+        // bismillah_salt_2026_Tech@123
+        final now = DateTime.now().toIso8601String();
+        // Calculate hash using string hashing algorithm matching AppUser.hashPassword
+        final bytes = p.Context().style == p.Style.windows
+            ? SystemEncoding().encode('bismillah_salt_2026_Tech@123')
+            : 'bismillah_salt_2026_Tech@123'.codeUnits;
+        int hash = 0x811c9dc5;
+        for (var b in bytes) {
+          hash ^= b;
+          hash = (hash * 0x01000193) & 0xFFFFFFFF;
+        }
+        final hashStr = hash.toRadixString(16).padLeft(8, '0');
+
+        await db.insert('app_users', {
+          'id': 'user-admin-superuser',
+          'username': 'admin',
+          'password_hash': hashStr,
+          'role': 'admin',
+          'status': 'active',
+          'created_at': now,
+          'updated_at': now,
+          'is_deleted': 0,
+        });
+      }
+    } catch (_) {}
   }
 
 }
