@@ -151,8 +151,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
   }
 }
 
-/// Slim, flat global chrome bar: rail toggle · app + tab title · theme toggle.
-class _TopBar extends StatelessWidget {
+/// Slim, flat global chrome bar: rail toggle · app + tab title · theme toggle · user avatar.
+class _TopBar extends ConsumerWidget {
   const _TopBar({
     required this.title,
     required this.railExtended,
@@ -168,8 +168,10 @@ class _TopBar extends StatelessWidget {
   final VoidCallback onToggleTheme;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final user = ref.watch(currentUserProvider);
+
     return Material(
       color: Theme.of(context).cardColor,
       child: Container(
@@ -205,6 +207,29 @@ class _TopBar extends StatelessWidget {
                   fontSize: 14,
                 )),
             const Spacer(),
+            if (user != null) ...[
+              Chip(
+                visualDensity: VisualDensity.compact,
+                avatar: Icon(
+                  user.isAdmin ? Icons.admin_panel_settings : Icons.person,
+                  size: 16,
+                  color: scheme.primary,
+                ),
+                label: Text(
+                  '${user.username} (${user.role.toUpperCase()})',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Log out',
+                icon: const Icon(Icons.logout, size: 20, color: Colors.red),
+                onPressed: () async {
+                  await ref.read(authNotifierProvider.notifier).logout();
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
             const SyncIndicator(),
             const SizedBox(width: 4),
             IconButton(

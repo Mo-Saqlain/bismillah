@@ -7,18 +7,13 @@ import 'package:bismillah_constructions/shared/core/app_restart.dart';
 import 'package:bismillah_constructions/shared/data/db/local_db.dart';
 import 'package:bismillah_constructions/shared/data/services/backup_service.dart';
 import 'package:bismillah_constructions/shared/providers/providers.dart';
+import 'package:bismillah_constructions/mobile/features/auth/login_screen.dart';
 import 'package:bismillah_constructions/mobile/features/home/home_screen.dart';
 
-/// Thin startup gate that sits in front of [HomeScreen].
+/// Thin startup gate that sits in front of [HomeScreen] and [LoginScreen].
 ///
-/// Backups live in external app-scoped storage (Bismillah_Backups folder)
-/// which survives app uninstall on most Android devices. So on a fresh
-/// install where the internal DB is empty, we **silently** copy the most
-/// recent backup over the internal DB — no dialog, no prompt.
-///
-/// On every subsequent cold start the DB has data, so this gate just opens
-/// the DB and goes straight to HomeScreen. The user can still run a manual
-/// import from Settings → Import backup whenever they want.
+/// Handles silent auto-restore on fresh installs, then routes to [LoginScreen]
+/// if no user is authenticated, or [HomeScreen] if active session exists.
 class RestoreGateway extends ConsumerStatefulWidget {
   const RestoreGateway({super.key});
 
@@ -28,10 +23,6 @@ class RestoreGateway extends ConsumerStatefulWidget {
 
 class _RestoreGatewayState extends ConsumerState<RestoreGateway> {
   bool _ready = false;
-  // Static flag survives the restartApp() ProviderScope rebuild. We only
-  // ever attempt one silent auto-restore per app launch — if the backup file
-  // is bad and the DB is still empty after a copy, we proceed to HomeScreen
-  // rather than looping forever.
   static bool _autoRestoreAttempted = false;
 
   @override
@@ -59,22 +50,16 @@ class _RestoreGatewayState extends ConsumerState<RestoreGateway> {
         return;
       }
 
-      // DB is empty. If a backup exists AND we haven't already tried this
-      // launch, silently restore it before showing HomeScreen. The static
-      // flag survives the restartApp() ProviderScope rebuild so a broken
-      // backup never loops.
       if (!_autoRestoreAttempted) {
         _autoRestoreAttempted = true;
         final backupPath =
             await BackupService.findLatestBackupForAutoRestore();
         if (backupPath != null) {
           await _silentRestore(backupPath);
-          return; // restartApp() rebuilds the tree
+          return;
         }
       }
-    } catch (_) {
-      // Any error — just open HomeScreen with whatever data exists.
-    }
+    } catch (_) {}
 
     if (mounted) setState(() => _ready = true);
   }
@@ -86,12 +71,8 @@ class _RestoreGatewayState extends ConsumerState<RestoreGateway> {
         if (mounted) setState(() => _ready = true);
         return;
       }
-      // Close the empty in-process DB so the file handle is released.
       await LocalDb.instance.reinitialize();
-      // Overwrite the empty DB file with the backup's content.
       await File(backupPath).copy(dbPath);
-      // Trigger a full ProviderScope rebuild so every provider reopens the
-      // freshly restored file from scratch.
       restartApp();
     } catch (_) {
       if (mounted) setState(() => _ready = true);
@@ -105,6 +86,20 @@ class _RestoreGatewayState extends ConsumerState<RestoreGateway> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    return const HomeScreen();
+
+    final authState = ref.watch(authNotifierProvider);
+
+    return authState.when(
+      data: (user) {
+        if (user == null) {
+          return const LoginScreen();
+        }
+        return const HomeScreen();
+      },
+      loading: () => const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, __) => const LoginScreen(),
+    );
   }
 }

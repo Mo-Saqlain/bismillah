@@ -290,6 +290,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final mode = ref.watch(themeModeProvider);
 
+    final currentUser = ref.watch(currentUserProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
@@ -301,6 +303,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           12 + kPillNavReservedHeight,
         ),
         children: [
+          _SectionTitle('User Account'),
+          Card(
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor:
+                    currentUser?.isAdmin == true ? Colors.indigo : Colors.blueGrey,
+                child: Icon(
+                  currentUser?.isAdmin == true
+                      ? Icons.admin_panel_settings
+                      : Icons.person,
+                  color: Colors.white,
+                ),
+              ),
+              title: Text(
+                currentUser?.username ?? 'Guest User',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                'Role: ${(currentUser?.role ?? 'User').toUpperCase()}',
+                style: const TextStyle(fontSize: 12),
+              ),
+              trailing: OutlinedButton.icon(
+                onPressed: () async {
+                  await ref.read(authNotifierProvider.notifier).logout();
+                },
+                icon: const Icon(Icons.logout, size: 18, color: Colors.red),
+                label: const Text('Log Out', style: TextStyle(color: Colors.red)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
           _SectionTitle('Appearance'),
           Card(
             child: Column(

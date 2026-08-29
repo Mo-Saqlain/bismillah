@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:bismillah_constructions/mobile/features/followups/followups_screen.dart';
 import 'package:bismillah_constructions/mobile/features/home/home_screen.dart' show kPillNavReservedHeight;
@@ -7,28 +8,37 @@ import 'package:bismillah_constructions/mobile/features/parties/parties_screen.d
 import 'package:bismillah_constructions/mobile/features/projects/projects_screen.dart';
 import 'package:bismillah_constructions/mobile/features/manage/labour_types_screen.dart';
 import 'package:bismillah_constructions/mobile/features/manage/material_types_screen.dart';
+import 'package:bismillah_constructions/mobile/features/manage/user_management_screen.dart';
+import 'package:bismillah_constructions/shared/providers/providers.dart';
 
-/// "Manage" tab — landing page that gathers the four entity-management
-/// screens (Materials, Wallets/Banks, Suppliers, Projects) under a single
-/// bottom-nav destination so the four bottom slots can be: Home · Settings
-/// · Reports · Manage.
-///
-/// Each card pushes onto the navigator so the user gets a normal back stack
-/// — keeping the host scaffolds (which carry their own AppBars + FABs)
-/// untouched.
-class ManageScreen extends StatelessWidget {
+/// "Manage" tab — landing page that gathers entity-management screens
+/// (Projects, Suppliers, Wallets/Banks, Material/Labour Types, Follow-ups, and User Management).
+class ManageScreen extends ConsumerWidget {
   const ManageScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
+    final pendingCount = ref.watch(pendingRequestsCountProvider).valueOrNull ?? 0;
+    final isAdmin = user == null || user.isAdmin;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Manage')),
       body: ListView(
-        // Bottom padding clears the floating pill nav so the last
-        // tile can scroll above it.
         padding: const EdgeInsets.fromLTRB(
             12, 12, 12, 12 + kPillNavReservedHeight),
         children: [
+          if (isAdmin)
+            _ManageCard(
+              icon: Icons.admin_panel_settings,
+              color: Colors.blueAccent,
+              title: 'User Management & Access',
+              badgeCount: pendingCount,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const UserManagementScreen()),
+              ),
+            ),
           _ManageCard(
             icon: Icons.foundation,
             color: Colors.indigo,
@@ -95,31 +105,44 @@ class _ManageCard extends StatelessWidget {
     required this.color,
     required this.title,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
   final Color color;
   final String title;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Card(
-        // Single-line row: icon + name only. Descriptive blurb dropped so the
-        // list stays compact under large font/display scaling.
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: color.withValues(alpha: 0.15),
-            foregroundColor: color,
-            child: Icon(icon),
-          ),
-          title: Text(title,
-              style: const TextStyle(fontWeight: FontWeight.w600)),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: onTap,
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: color.withOpacity(0.15),
+          child: Icon(icon, color: color),
         ),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (badgeCount > 0) ...[
+              Badge(
+                label: Text('$badgeCount'),
+                backgroundColor: Colors.orange,
+              ),
+              const SizedBox(width: 8),
+            ],
+            Icon(Icons.chevron_right, color: scheme.outline),
+          ],
+        ),
+        onTap: onTap,
       ),
     );
   }
