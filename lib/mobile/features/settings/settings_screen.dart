@@ -326,7 +326,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               trailing: OutlinedButton.icon(
                 onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
                   await ref.read(authNotifierProvider.notifier).logout();
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Logged out of user session.'),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
                 },
                 icon: const Icon(Icons.logout, size: 18, color: Colors.red),
                 label: const Text('Log Out', style: TextStyle(color: Colors.red)),
@@ -489,6 +496,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 'Permanently clears all projects, transactions, inventory, notes and cloud data across all connected devices.',
               ),
               onTap: () async {
+                final user = ref.read(currentUserProvider);
+                if (user?.isAdmin != true) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Access Denied: Only the superuser (admin) can wipe all data.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
                 final repo = await ref.read(entityRepoProvider.future);
                 final tenant = await repo.tenantIdOrNull();
                 if (!context.mounted) return;
@@ -542,14 +560,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: ListTile(
               leading: const Icon(Icons.fact_check),
               title: const Text('Change Log'),
-              subtitle: const Text(
-                'New entries, edits, deletes and archives. Export to CSV.',
+              subtitle: Text(
+                currentUser?.isAdmin == true
+                    ? 'New entries, edits, deletes and archives. Export to CSV.'
+                    : 'Restricted to Superuser (admin)',
               ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ChangeLogScreen()),
+              trailing: Icon(
+                currentUser?.isAdmin == true
+                    ? Icons.chevron_right
+                    : Icons.lock_outline,
               ),
+              onTap: () {
+                if (currentUser?.isAdmin != true) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Access Denied: Only the superuser (admin) has access to the Change Log.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ChangeLogScreen()),
+                );
+              },
             ),
           ),
           Card(

@@ -225,7 +225,14 @@ class _TopBar extends ConsumerWidget {
                 tooltip: 'Log out',
                 icon: const Icon(Icons.logout, size: 20, color: Colors.red),
                 onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
                   await ref.read(authNotifierProvider.notifier).logout();
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Logged out of user session.'),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
                 },
               ),
               const SizedBox(width: 8),

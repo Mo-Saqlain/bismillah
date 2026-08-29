@@ -30,6 +30,34 @@ class ChangeLogScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(currentUserProvider);
+    final isSuperuser = currentUser?.isAdmin == true;
+
+    if (!isSuperuser) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Activity Log')),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_outlined, size: 64, color: Colors.red),
+              SizedBox(height: 16),
+              Text(
+                'Access Restricted',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Only the superuser (admin) has access to the Change Log.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final bundle = ref.watch(_changeLogBundleProvider);
 
     return Scaffold(
