@@ -34,6 +34,15 @@ CREATE TABLE IF NOT EXISTS access_requests (
 CREATE INDEX IF NOT EXISTS idx_access_requests_tenant_updated
   ON access_requests (tenant_id, updated_at);
 
+-- Helper: Generic AFTER UPDATE trigger that bumps updated_at
+CREATE OR REPLACE FUNCTION bump_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
 -- Attach bump-on-update triggers
 DO $$
 DECLARE
