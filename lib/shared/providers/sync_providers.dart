@@ -61,10 +61,6 @@ final commitSyncWiringProvider = FutureProvider<void>((ref) async {
 
   ledger.addCommitListener(onCommit);
   ref.onDispose(() => ledger.removeCommitListener(onCommit));
-
-  ref.listen<int>(ledgerVersionProvider, (previous, next) {
-    unawaited(sync.syncNow(pushOnly: true));
-  });
 });
 
 /// Bumps `ledgerVersionProvider` whenever the sync engine applies a remote

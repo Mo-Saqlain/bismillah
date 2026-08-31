@@ -600,6 +600,8 @@ class LedgerRepository {
       await txn.delete('labour_types');
       await txn.delete('notes');
       await txn.delete('follow_ups');
+      await txn.delete('access_requests');
+      await txn.delete('app_users');
       await txn.delete('app_settings', where: "key LIKE 'cloud_%'");
     });
     _fireCommit();
